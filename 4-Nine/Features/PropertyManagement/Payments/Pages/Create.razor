@@ -1,0 +1,6 @@
+@page "/propertymanagement/payments/create"
+@using Nine.Shared.UI.Features.PropertyManagement.Payments
+@attribute [OrganizationAuthorize("Owner", "Administrator", "PropertyManager")]
+@rendermode InteractiveServer
+
+<CreateForm />

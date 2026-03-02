@@ -1,0 +1,5 @@
+@page "/propertymanagement/invoices"
+@attribute [OrganizationAuthorize("Owner", "Administrator", "PropertyManager")]
+@rendermode InteractiveServer
+
+<Nine.Shared.UI.Features.PropertyManagement.Invoices.ListForm />

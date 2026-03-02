@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restore
+        run: dotnet restore Aquiis.sln
+
+      - name: Build
+        run: dotnet build Aquiis.sln --no-restore --configuration Release
+
+      - name: Test Core Layer
+        run: dotnet test 6-Tests/Aquiis.Core.Tests/Aquiis.Core.Tests.csproj --no-build --configuration Release --verbosity normal
+
+      - name: Test Application Layer
+        run: dotnet test 6-Tests/Aquiis.Application.Tests/Aquiis.Application.Tests.csproj --no-build --configuration Release --verbosity normal
+
+      - name: Test Shared UI Components (bUnit)
+        run: dotnet test 6-Tests/Aquiis.UI.Shared.Tests/Aquiis.UI.Shared.Tests.csproj --no-build --configuration Release --verbosity normal

@@ -1,0 +1,88 @@
+@page "/administration/dashboard"
+
+@using Nine.Shared.Components.Shared
+
+@inject NavigationManager NavigationManager
+
+@rendermode InteractiveServer
+
+<PageTitle>Application Management Dashboard</PageTitle>
+
+<OrganizationAuthorizeView Roles="Owner,Administrator">
+    <ChildContent>
+        <!-- Application management UI goes here -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="bi bi-window-dock"></i> Application Management</h1>
+            <div class="text-muted">
+                <i class="bi bi-shield-check"></i> Admin Only
+            </div>
+        </div>
+ @if (isLoading)
+    {
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+
+    <div>
+        <button class="btn btn-outline-primary" @onclick="GoToApplicationSettings">Application Settings</button>
+        <button class="btn btn-info" @onclick="GoToDatabaseSettings">Manage Database</button>
+        <button class="btn btn-warning" @onclick="GoToUserManagement">User Management</button>
+    </div>
+    </ChildContent>
+    <NotAuthorized>
+        @{
+            NavigationManager.NavigateTo("/Account/Login", forceLoad: true);
+        }
+    </NotAuthorized>
+</OrganizationAuthorizeView>
+
+@code {
+    private bool isLoading = false;
+   
+    
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask;
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            await LoadDashboardData();
+        }
+        isLoading = false;
+    }
+
+    private async Task LoadDashboardData()
+    {
+        var authState = await AuthenticationStateTask;
+        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        
+        if (string.IsNullOrEmpty(userId))
+            return;
+
+    }
+
+
+    private void GoToApplicationSettings()
+    {
+        // Logic to navigate to the application settings page
+        NavigationManager.NavigateTo("/administration/settings/application");
+    }
+    
+    private void GoToDatabaseSettings()
+    {
+        // Logic to navigate to the database management page
+        NavigationManager.NavigateTo("/administration/settings/database");
+    }
+
+    private void GoToUserManagement()
+    {
+        // Logic to navigate to the user management page
+        NavigationManager.NavigateTo("/administration/users/manage");
+    }
+
+}

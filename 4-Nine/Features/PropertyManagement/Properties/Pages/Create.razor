@@ -1,0 +1,5 @@
+@page "/propertymanagement/properties/create"
+@attribute [OrganizationAuthorize("Owner", "Administrator", "PropertyManager")]
+@rendermode InteractiveServer
+
+<Nine.Shared.UI.Features.PropertyManagement.Properties.PropertyCreateForm />

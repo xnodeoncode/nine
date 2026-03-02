@@ -1,0 +1,28 @@
+
+@namespace Nine.Shared.UI.Components.Entities.OrganizationUsers
+
+<div class="card mb-3">
+    <div class="card-header">
+        <h5 class="card-title mb-0"><i class="bi bi-person-circle me-2"></i>User Profile</h5>
+    </div>
+    <div class="card-body d-flex align-items-center">
+        <div class="me-3">
+            <Nine.Shared.UI.Components.Common.UserAvatar 
+                Size="64" 
+                FirstName="@OrganizationUserViewModel!.FirstName" 
+                LastName="@OrganizationUserViewModel!.LastName" />
+        </div>
+        <div>
+            <h5 class="card-title mb-1">@OrganizationUserViewModel!.FirstName @OrganizationUserViewModel!.LastName</h5>
+            <p class="card-text mb-1"><strong>Email:</strong> @OrganizationUserViewModel!.Email</p>
+            <p class="card-text mb-0"><strong>Role:</strong> @OrganizationUserViewModel!.Role</p>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    [Parameter, EditorRequired]
+    public OrganizationUserViewModel? OrganizationUserViewModel { get; set; } = new();
+
+}

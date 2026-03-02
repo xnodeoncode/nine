@@ -1,0 +1,5 @@
+@page "/propertymanagement/tenants"
+@attribute [OrganizationAuthorize("Owner", "Administrator", "PropertyManager", "User")]
+@rendermode InteractiveServer
+
+<Nine.Shared.UI.Features.PropertyManagement.Tenants.ListForm />

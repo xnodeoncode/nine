@@ -1,0 +1,76 @@
+{
+  "executable": "Aquiis.SimpleStart",
+  "splashscreen": {
+    "imageFile": "wwwroot/assets/splash.png"
+  },
+  "electronCLIFlags": [
+    "--enable-features=VaapiVideoDecoder",
+    "--disable-dev-shm-usage"
+  ],
+  "name": "aquiis",
+  "description": "Aquiis Property Management",
+  "author": "Aquiis",
+  "singleInstance": false,
+  "environment": "Production",
+  "aspCoreBackendPort": 8888,
+  "build": {
+    "appId": "com.aquiis.propertymanagement",
+    "productName": "Aquiis",
+    "copyright": "Copyright © 2026",
+    "buildVersion": "1.1.2",
+    "compression": "normal",
+    "directories": {
+      "output": "../../../bin/Desktop"
+    },
+    "extraResources": [
+      {
+        "from": "./bin",
+        "to": "bin",
+        "filter": ["**/*"]
+      }
+    ],
+    "files": [
+      {
+        "from": "./ElectronHostHook/node_modules",
+        "to": "ElectronHostHook/node_modules",
+        "filter": ["**/*"]
+      },
+      "**/*"
+    ],
+    "mac": {
+      "target": "dmg",
+      "icon": "bin/Assets/icon.icns",
+      "category": "public.app-category.business"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "bin/Assets/icon.ico",
+      "artifactName": "${productName}-${version}-${arch}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Aquiis"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "bin/Assets/icon.png",
+      "category": "Office",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "desktop": {
+        "entry": {
+          "X-AppImage-Payload-License": "MIT"
+        }
+      },
+      "extraFiles": [
+        {
+          "from": "Assets/com.aquiis.propertymanagement.appdata.xml",
+          "to": "usr/share/metainfo/com.aquiis.propertymanagement.appdata.xml"
+        }
+      ]
+    }
+  }
+}

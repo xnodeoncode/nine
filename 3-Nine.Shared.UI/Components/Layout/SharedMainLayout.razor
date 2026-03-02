@@ -1,0 +1,44 @@
+@inherits LayoutComponentBase
+@namespace Nine.Shared.UI.Components.Layout
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore.Metadata.Internal
+
+<div class="page" data-bs-theme="@Theme" @key="Theme">
+    <div class="sidebar" @key="@($"sidebar-{Theme}")">
+        @SidebarContent
+    </div>
+
+    <main @key="@($"main-{Theme}")">
+        <div class="top-row px-4" @key="@($"{Theme}-top-row")">
+            <AuthorizeView>
+                <NotAuthorized>
+                    @NotAuthorizedContent
+                </NotAuthorized>
+                <Authorized>
+                    @AuthorizedHeaderContent
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        <article class="content px-4" @key="@($"article-{Theme}")">
+            @ChildContent
+        </article>
+    </main>
+</div>
+
+@FooterContent
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    [Parameter] public string Theme { get; set; } = "light";
+    [Parameter] public RenderFragment? SidebarContent { get; set; }
+    [Parameter] public RenderFragment? NotAuthorizedContent { get; set; }
+    [Parameter] public RenderFragment? AuthorizedHeaderContent { get; set; }
+    [Parameter] public RenderFragment? FooterContent { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

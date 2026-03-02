@@ -1,0 +1,9 @@
+@page "/propertymanagement/tenants/{Id:guid}"
+@attribute [OrganizationAuthorize("Owner", "Administrator", "PropertyManager")]
+@rendermode InteractiveServer
+
+<Nine.Shared.UI.Features.PropertyManagement.Tenants.ViewForm TenantId="@Id" />
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+}

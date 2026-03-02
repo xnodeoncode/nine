@@ -1,0 +1,11 @@
+@page "/propertymanagement/properties/{PropertyId:guid}/edit"
+@attribute [OrganizationAuthorize("Owner", "Administrator", "PropertyManager")]
+@rendermode InteractiveServer
+@using Nine.Shared.UI.Features.PropertyManagement.Properties
+
+<PropertyEditForm PropertyId="@PropertyId" />
+
+@code {
+    [Parameter]
+    public Guid PropertyId { get; set; }
+}

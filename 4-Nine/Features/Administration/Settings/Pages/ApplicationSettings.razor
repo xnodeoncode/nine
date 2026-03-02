@@ -1,0 +1,677 @@
+@page "/administration/settings/application"
+
+@using Nine.Core.Entities
+@using OrganizationSettingsEntity = Nine.Core.Entities.OrganizationSettings
+@using CalendarSettingsEntity = Nine.Core.Entities.CalendarSettings
+@using Nine.Features.PropertyManagement
+@using Nine.Application.Services
+@using Nine.Shared.Services
+@using Nine.Application.Services.PdfGenerators
+@using Nine.Infrastructure.Data
+@using Nine.Core.Constants
+@using Nine.Core.Utilities
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+
+@inject OrganizationService OrganizationService
+@inject UserContextService UserContext
+@inject ToastService ToastService
+@inject NavigationManager Navigation
+@inject ApplicationDbContext DbContext
+@inject CalendarSettingsService CalendarSettingsService
+
+@inject ApplicationService ApplicationService
+@inject ILogger<ApplicationSettings> Logger
+
+@attribute [OrganizationAuthorize("Owner", "Administrator")]
+@rendermode InteractiveServer
+
+@namespace Nine.Features.Administration.Settings.Pages
+
+<PageTitle>Application Settings</PageTitle>
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="d-flex align-items-center gap-3 mb-2">
+                        <h1 class="mb-0"><i class="bi bi-gear me-2"></i>Application Settings</h1>
+                        <div class="text-muted">
+                            <i class="bi bi-shield-check"></i> Admin Only
+                        </div>
+                    </div>
+                    <p class="text-muted mb-0">Configure settings for your application</p>
+                </div>
+                <div class="btn-group" role="group">
+                    <button class="btn btn-outline-secondary" @onclick="GoToDatabaseSettings">
+                        <i class="bi bi-database"></i> Manage Database
+                    </button>
+                    <button class="btn btn-outline-secondary" @onclick="GoToUserManagement">
+                        <i class="bi bi-people"></i> User Management
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+    else if (settings == null)
+    {
+        <div class="alert alert-warning">
+            <h4 class="alert-heading">No Settings Found</h4>
+            <p>Organization settings have not been configured yet. Default values will be used.</p>
+            <hr>
+            <button type="button" class="btn btn-primary" @onclick="CreateDefaultSettings">
+                <i class="bi bi-plus-circle me-2"></i>Create Default Settings
+            </button>
+        </div>
+    }
+    else
+    {
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                @errorMessage
+                <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                @successMessage
+                <button type="button" class="btn-close" @onclick="() => successMessage = string.Empty"></button>
+            </div>
+        }
+
+        <EditForm Model="settingsModel" OnValidSubmit="HandleSaveSettings" FormName="organization-settings">
+            <DataAnnotationsValidator />
+
+            <div class="row">
+                <div class="col-lg-8">
+                    <!-- Late Fee Settings -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="card-title mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Late Fee Settings</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check form-switch mb-3">
+                                <InputCheckbox @bind-Value="settingsModel.LateFeeEnabled" class="form-check-input" id="lateFeeEnabled" />
+                                <label class="form-check-label" for="lateFeeEnabled">
+                                    <strong>Enable Late Fees</strong>
+                                </label>
+                            </div>
+
+                            @if (settingsModel.LateFeeEnabled)
+                            {
+                                <div class="form-check form-switch mb-3">
+                                    <InputCheckbox @bind-Value="settingsModel.LateFeeAutoApply" class="form-check-input" id="lateFeeAutoApply" />
+                                    <label class="form-check-label" for="lateFeeAutoApply">
+                                        Auto-apply late fees after grace period
+                                    </label>
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Grace Period *</label>
+                                        <div class="input-group">
+                                            <InputNumber @bind-Value="settingsModel.LateFeeGracePeriodDays" class="form-control" />
+                                            <span class="input-group-text">days</span>
+                                        </div>
+                                        <ValidationMessage For="() => settingsModel.LateFeeGracePeriodDays" class="text-danger small" />
+                                        <small class="text-muted">Days after due date before late fee applies</small>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Late Fee Percentage *</label>
+                                        <div class="input-group">
+                                            <InputNumber @bind-Value="settingsModel.LateFeePercentage" class="form-control" step="0.01" />
+                                            <span class="input-group-text">%</span>
+                                        </div>
+                                        <ValidationMessage For="() => settingsModel.LateFeePercentage" class="text-danger small" />
+                                        <small class="text-muted">Percentage of rent amount (e.g., 0.05 = 5%)</small>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Maximum Late Fee *</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <InputNumber @bind-Value="settingsModel.MaxLateFeeAmount" class="form-control" step="0.01" />
+                                        </div>
+                                        <ValidationMessage For="() => settingsModel.MaxLateFeeAmount" class="text-danger small" />
+                                        <small class="text-muted">Cap on late fee amount</small>
+                                    </div>
+                                </div>
+
+                                @if (settingsModel.LateFeePercentage > 0)
+                                {
+                                    <div class="alert alert-info mt-3">
+                                        <strong>Example:</strong> For a $1,000 rent payment:
+                                        <ul class="mb-0 mt-2">
+                                            <li>Calculated late fee: $@((1000 * settingsModel.LateFeePercentage).ToString("F2"))</li>
+                                            <li>Actual late fee (with cap): $@(Math.Min(1000 * settingsModel.LateFeePercentage, settingsModel.MaxLateFeeAmount).ToString("F2"))</li>
+                                        </ul>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Background Tasks -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="card-title mb-0"><i class="bi bi-clock-history me-2"></i>Background Tasks</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i>
+                                <strong>How it works:</strong> These tasks normally run automatically daily at 2:00 AM. Use these buttons to run them immediately for testing or administrative purposes.
+                            </div>
+
+                            <div class="list-group">
+                                <div class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">Update Invoice Statuses</h6>
+                                            <small class="text-muted">Mark pending invoices as overdue and apply late fees</small>
+                                        </div>
+                                        <button class="btn btn-sm btn-primary" @onclick="() => RunTask(TaskType.UpdateInvoiceStatuses)" disabled="@isRunningTask">
+                                            @if (runningTask == TaskType.UpdateInvoiceStatuses)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                            }
+                                            <i class="bi bi-play-fill"></i> Run Now
+                                        </button>
+                                    </div>
+                                    @if (taskResults.ContainsKey(TaskType.UpdateInvoiceStatuses))
+                                    {
+                                        <div class="alert alert-success mt-2 mb-0">
+                                            <small>@taskResults[TaskType.UpdateInvoiceStatuses]</small>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="mt-3">
+                                <small class="text-muted">
+                                    <strong>Next scheduled run:</strong> @GetNextRunTime()
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Calendar Settings -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="card-title mb-0"><i class="bi bi-calendar-check me-2"></i>Calendar Settings</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i>
+                                <strong>How it works:</strong> Control which event types are visible on your calendar. Users can manually add custom events for any category.
+                            </div>
+
+                            @if (calendarSettings.Any())
+                            {
+                                <div class="list-group">
+                                    @foreach (var setting in calendarSettings)
+                                    {
+                                        <div class="list-group-item">
+                                            <div class="d-flex align-items-center justify-content-between">
+                                                <div class="d-flex align-items-center">
+                                                    <i class="bi @(setting.DefaultIcon ?? "bi-calendar-event") me-3" 
+                                                       style="font-size: 1.25rem; color: @(setting.DefaultColor ?? "#6c757d");"></i>
+                                                    <span>@CalendarEventTypes.GetDisplayName(setting.EntityType)</span>
+                                                </div>
+                                                <div class="form-check form-switch">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           id="@($"show-{setting.Id}")"
+                                                           checked="@setting.ShowOnCalendar"
+                                                           disabled="@(!canEdit)"
+                                                           @onchange="@(e => ToggleShowOnCalendar(setting, (bool)e.Value!))" />
+                                                    <label class="form-check-label" for="@($"show-{setting.Id}")">
+                                                        @if (setting.ShowOnCalendar)
+                                                        {
+                                                            <span class="badge bg-primary">Show</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="badge bg-secondary">Hide</span>
+                                                        }
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex justify-content-between mb-4">
+                        <div>
+                            <button type="submit" class="btn btn-primary btn-lg" disabled="@(isSubmitting || !canEdit)">
+                                @if (isSubmitting)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    <span>Saving...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-save me-2"></i>
+                                    <span>Save Settings</span>
+                                }
+                            </button>
+                            @if (!canEdit)
+                            {
+                                <div class="text-muted mt-2">
+                                    <small><i class="bi bi-info-circle me-1"></i>You have read-only access to these settings.</small>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    @* <!-- Settings Summary -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Settings Summary</h5>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="border-bottom pb-2">Late Fees</h6>
+                            <ul class="list-unstyled mb-3">
+                                <li><strong>Status:</strong> @(settingsModel.LateFeeEnabled ? "✅ Enabled" : "❌ Disabled")</li>
+                                @if (settingsModel.LateFeeEnabled)
+                                {
+                                    <li><strong>Grace Period:</strong> @settingsModel.LateFeeGracePeriodDays days</li>
+                                    <li><strong>Percentage:</strong> @(settingsModel.LateFeePercentage * 100)%</li>
+                                    <li><strong>Max Fee:</strong> $@settingsModel.MaxLateFeeAmount.ToString("F2")</li>
+                                    <li><strong>Auto-Apply:</strong> @(settingsModel.LateFeeAutoApply ? "Yes" : "No")</li>
+                                }
+                            </ul>
+                        </div>
+                    </div> *@
+
+                     <!-- Application Information -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-obsidian-primary text-white">
+                            <h5 class="card-title mb-0"><i class="bi bi-info-circle me-2"></i>Application Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-0">
+                                <dt class="col-sm-5">Product Name</dt>
+                                <dd class="col-sm-7">@ApplicationService.ApplicationSettings.ProductName</dd>
+
+                                <dt class="col-sm-5">Version</dt>
+                                <dd class="col-sm-7">@ApplicationService.ApplicationSettings.Version</dd>
+
+                                <dt class="col-sm-5">Database Version</dt>
+                                <dd class="col-sm-7">@ApplicationService.ApplicationSettings.SchemaVersion</dd>
+
+                                <dt class="col-sm-5">License</dt>
+                                <dd class="col-sm-7">
+                                    MIT License 
+                                    <a href="https://github.com/xnodeoncode/Aquiis/blob/main/LICENSE" 
+                                       target="_blank" 
+                                       class="ms-2">
+                                        <i class="bi bi-box-arrow-up-right"></i> View
+                                    </a>
+                                </dd>
+
+                                <dt class="col-sm-5">Repository</dt>
+                                <dd class="col-sm-7">
+                                    <a href="@ApplicationService.ApplicationSettings.Repository" target="_blank">
+                                        <i class="bi bi-github me-1"></i>GitHub
+                                    </a>
+                                </dd>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Help Card -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">About Settings</h5>
+                        </div>
+                        <div class="card-body">
+                            <h6><strong>Late Fees</strong></h6>
+                            <p class="small mb-2">
+                                Settings apply to all properties and tenants. Changes take effect immediately but do not retroactively affect existing invoices.
+                            </p>
+                            
+                            <h6 class="mt-3"><strong>Background Tasks</strong></h6>
+                            <p class="small mb-2">
+                                Tasks run automatically at application start-up. Click "Run Now" for immediate processing.
+                            </p>
+                            
+                            <h6 class="mt-3"><strong>Calendar</strong></h6>
+                            <p class="small mb-0">
+                                Control which event types appear on your calendar. You can always add custom events manually for any category.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Documentation -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0"><i class="bi bi-book"></i> Documentation</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group list-group-flush">
+                                <a href="https://github.com/xnodeoncode/Aquiis/blob/main/Documentation/Quick-Start-Guide.md" 
+                                   target="_blank" 
+                                   class="list-group-item list-group-item-action">
+                                    <i class="bi bi-rocket-takeoff me-2"></i>Quick Start Guide
+                                    <i class="bi bi-box-arrow-up-right ms-2 small text-muted"></i>
+                                </a>
+                                <a href="https://github.com/xnodeoncode/Aquiis/blob/main/Documentation/Database-Management-Guide.md" 
+                                   target="_blank" 
+                                   class="list-group-item list-group-item-action">
+                                    <i class="bi bi-database-gear me-2"></i>Database Management Guide
+                                    <i class="bi bi-box-arrow-up-right ms-2 small text-muted"></i>
+                                </a>
+                                <a href="https://github.com/xnodeoncode/Aquiis/tree/main/Documentation" 
+                                   target="_blank" 
+                                   class="list-group-item list-group-item-action">
+                                    <i class="bi bi-collection me-2"></i>All Documentation
+                                    <i class="bi bi-box-arrow-up-right ms-2 small text-muted"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                   
+                </div>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    private OrganizationSettingsEntity? settings;
+    private OrganizationSettingsModel settingsModel = new();
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private Guid organizationId = Guid.Empty;
+    private bool canEdit = true;
+    
+    // Background tasks
+    private bool isRunningTask = false;
+    private TaskType? runningTask = null;
+    private Dictionary<TaskType, string> taskResults = new();
+    
+    // Calendar settings
+    private List<CalendarSettingsEntity> calendarSettings = new();
+    
+    private enum TaskType
+    {
+        UpdateInvoiceStatuses
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            organizationId = await UserContext.GetActiveOrganizationIdAsync() ?? Guid.Empty;
+            await LoadSettings();
+            await LoadCalendarSettings();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading settings: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadSettings()
+    {
+        settings = await OrganizationService.GetOrganizationSettingsAsync();
+
+        if (settings != null)
+        {
+            // Map to model
+            settingsModel = new OrganizationSettingsModel
+            {
+                LateFeeEnabled = settings.LateFeeEnabled,
+                LateFeeAutoApply = settings.LateFeeAutoApply,
+                LateFeeGracePeriodDays = settings.LateFeeGracePeriodDays,
+                LateFeePercentage = settings.LateFeePercentage,
+                MaxLateFeeAmount = settings.MaxLateFeeAmount
+            };
+        }
+    }
+
+    private async Task CreateDefaultSettings()
+    {
+        isSubmitting = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            settings = new OrganizationSettingsEntity
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                LateFeeEnabled = true,
+                LateFeeAutoApply = true,
+                LateFeeGracePeriodDays = 3,
+                LateFeePercentage = 0.05m,
+                MaxLateFeeAmount = 50.00m,
+                CreatedOn = DateTime.UtcNow,
+                CreatedBy = "System"
+            };
+
+            await OrganizationService.UpdateOrganizationSettingsAsync(settings);
+            successMessage = "Default settings created successfully!";
+            await LoadSettings();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error creating default settings: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task HandleSaveSettings()
+    {
+        if (settings == null) return;
+
+        isSubmitting = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            // Update settings from model
+            settings.LateFeeEnabled = settingsModel.LateFeeEnabled;
+            settings.LateFeeAutoApply = settingsModel.LateFeeAutoApply;
+            settings.LateFeeGracePeriodDays = settingsModel.LateFeeGracePeriodDays;
+            settings.LateFeePercentage = settingsModel.LateFeePercentage;
+            settings.MaxLateFeeAmount = settingsModel.MaxLateFeeAmount;
+            settings.LastModifiedOn = DateTime.UtcNow;
+
+            await OrganizationService.UpdateOrganizationSettingsAsync(settings);
+            
+            // Save calendar settings
+            if (calendarSettings.Any())
+            {
+                await CalendarSettingsService.UpdateMultipleSettingsAsync(calendarSettings);
+            }
+            
+            successMessage = "Settings saved successfully!";
+            ToastService.ShowSuccess("Organization settings updated successfully.");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving settings: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void GoToDatabaseSettings()
+    {
+        Navigation.NavigateTo("/administration/settings/database");
+    }
+    
+    private void GoToUserManagement()
+    {
+        Navigation.NavigateTo("/administration/users/manage");
+    }
+
+    private async Task LoadCalendarSettings()
+    {
+        try
+        {
+            if (organizationId != Guid.Empty)
+            {
+                calendarSettings = await CalendarSettingsService.GetSettingsAsync(organizationId);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading calendar settings");
+        }
+    }
+    
+    private void ToggleShowOnCalendar(CalendarSettingsEntity setting, bool show)
+    {
+        setting.ShowOnCalendar = show;
+    }
+    
+    private async Task RunTask(TaskType taskType)
+    {
+        try
+        {
+            isRunningTask = true;
+            runningTask = taskType;
+            taskResults.Remove(taskType);
+
+            if (taskType == TaskType.UpdateInvoiceStatuses)
+            {
+                await UpdateInvoiceStatuses();
+            }
+
+            ToastService.ShowSuccess("Task completed successfully");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error running task {TaskType}", taskType);
+            ToastService.ShowError($"Error running task: {ex.Message}");
+        }
+        finally
+        {
+            isRunningTask = false;
+            runningTask = null;
+        }
+    }
+    
+    private async Task UpdateInvoiceStatuses()
+    {
+        if (settings == null)
+        {
+            taskResults[TaskType.UpdateInvoiceStatuses] = "Settings not found";
+            return;
+        }
+
+        var today = DateTime.Today;
+        var gracePeriodCutoff = today.AddDays(-settings.LateFeeGracePeriodDays);
+        
+        // Find all pending invoices that are past due
+        var overdueInvoices = await DbContext.Invoices
+            .Include(i => i.Lease)
+            .Where(i => !i.IsDeleted &&
+                       i.OrganizationId == organizationId &&
+                       i.Status == "Pending" &&
+                       i.DueOn < today)
+            .ToListAsync();
+
+        var statusUpdatedCount = 0;
+        var lateFeesAppliedCount = 0;
+
+        foreach (var invoice in overdueInvoices)
+        {
+            // Always update status to overdue
+            invoice.Status = "Overdue";
+            invoice.LastModifiedOn = DateTime.UtcNow;
+            invoice.LastModifiedBy = ApplicationConstants.SystemUser.Id;
+            statusUpdatedCount++;
+
+            // Apply late fee if enabled and past grace period
+            if (settings.LateFeeEnabled && 
+                settings.LateFeeAutoApply &&
+                invoice.DueOn < gracePeriodCutoff &&
+                (invoice.LateFeeApplied == null || !invoice.LateFeeApplied.Value))
+            {
+                var lateFee = Math.Min(invoice.Amount * settings.LateFeePercentage, settings.MaxLateFeeAmount);
+                invoice.LateFeeAmount = lateFee;
+                invoice.LateFeeApplied = true;
+                invoice.LateFeeAppliedOn = DateTime.UtcNow;
+                invoice.Amount += lateFee;
+                invoice.Notes = string.IsNullOrEmpty(invoice.Notes)
+                    ? $"Late fee of {lateFee:C} applied on {DateTime.Now:MMM dd, yyyy}"
+                    : $"{invoice.Notes}\nLate fee of {lateFee:C} applied on {DateTime.Now:MMM dd, yyyy}";
+                lateFeesAppliedCount++;
+            }
+        }
+
+        if (overdueInvoices.Any())
+        {
+            await DbContext.SaveChangesAsync();
+        }
+
+        taskResults[TaskType.UpdateInvoiceStatuses] = $"Processed {overdueInvoices.Count} overdue invoice(s): {statusUpdatedCount} status updated, {lateFeesAppliedCount} late fees applied";
+    }
+    
+    private string GetNextRunTime()
+    {
+        var now = DateTime.Now;
+        var next2AM = DateTime.Today.AddDays(1).AddHours(2);
+        
+        if (now.Hour < 2)
+        {
+            next2AM = DateTime.Today.AddHours(2);
+        }
+
+        return next2AM.ToString("MMM dd, yyyy h:mm tt");
+    }
+
+    public class OrganizationSettingsModel
+    {
+        public bool LateFeeEnabled { get; set; } = true;
+
+        public bool LateFeeAutoApply { get; set; } = true;
+
+        [Required]
+        [Range(0, 30, ErrorMessage = "Grace period must be between 0 and 30 days")]
+        public int LateFeeGracePeriodDays { get; set; } = 3;
+
+        [Required]
+        [Range(0, 1, ErrorMessage = "Late fee percentage must be between 0% and 100%")]
+        public decimal LateFeePercentage { get; set; } = 0.05m;
+
+        [Required]
+        [Range(0, 10000, ErrorMessage = "Maximum late fee must be between $0 and $10,000")]
+        public decimal MaxLateFeeAmount { get; set; } = 50.00m;
+    }
+}

@@ -1,0 +1,23 @@
+﻿@using Nine.Shared.Components.Account.Shared
+@using Nine.Infrastructure.Services
+@inject DatabaseUnlockState? UnlockState
+
+@if (UnlockState?.NeedsUnlock == true)
+{
+    <!-- Show unlock page BEFORE routing -->
+    <Nine.Features.DatabaseUnlock.Index />
+}
+else
+{
+    <!-- Normal routing -->
+    <Router AppAssembly="typeof(Program).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Shared.Layout.MainLayout)">
+                <NotAuthorized>
+                    <RedirectToLogin />
+                </NotAuthorized>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="routeData" Selector="h1" />
+        </Found>
+    </Router>
+}

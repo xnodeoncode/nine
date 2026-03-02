@@ -1,0 +1,35 @@
+# Ignore file for Nine projects
+
+# Build outputs - ignore bin/obj in all project folders
+**/bin/
+**/obj/
+
+# Electron host - track the folder but ignore node_modules
+obj/Host/node_modules/
+
+# Node modules everywhere
+node_modules/
+
+# SQL Scripts - using migrations instead
+**/Data/Scripts
+
+# Database files
+*.db*
+
+Data/Backups/**
+/Data/Backups/**
+
+/Data/app*
+
+sp_credentials.json
+
+publish_profile.xml
+
+
+# Python virtual environment created per-project
+.venv/
+
+obj/
+
+# VS Code user-specific settings (keep launch.json and tasks.json)
+.vscode/settings.json

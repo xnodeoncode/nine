@@ -1,0 +1,47 @@
+﻿@inherits LayoutComponentBase
+@using Nine.Shared.Components
+@using Nine.Shared.Services
+@using Nine.Shared.UI.Components.Layout
+@inject ThemeService ThemeService
+@implements IDisposable
+
+<SharedMainLayout Theme="@ThemeService.CurrentTheme">
+    <SidebarContent>
+        <NavMenu @rendermode="InteractiveServer" @key="@($"navmenu-{ThemeService.CurrentTheme}-{ThemeService.CurrentBrandTheme}")" />
+    </SidebarContent>
+    
+    <NotAuthorizedContent>
+        <a href="about" target="_blank">About</a>
+    </NotAuthorizedContent>
+    
+    <AuthorizedHeaderContent>
+        <AuthorizedHeaderSection @key="@($"header-{ThemeService.CurrentTheme}-{ThemeService.CurrentBrandTheme}")" />
+    </AuthorizedHeaderContent>
+    
+    <ChildContent>
+        @Body
+    </ChildContent>
+    
+    <FooterContent>
+        <ToastContainer />
+        <AuthorizeView>
+            <Authorized>
+                <SessionTimeoutModal @rendermode="InteractiveServer" />
+            </Authorized>
+        </AuthorizeView>
+    </FooterContent>
+</SharedMainLayout>
+
+@code {
+    protected override void OnInitialized()
+    {
+        ThemeService.OnThemeChanged += StateHasChanged;
+        ThemeService.OnBrandThemeChanged += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= StateHasChanged;
+        ThemeService.OnBrandThemeChanged -= StateHasChanged;
+    }
+}

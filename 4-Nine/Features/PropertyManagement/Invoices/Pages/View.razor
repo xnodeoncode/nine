@@ -1,0 +1,9 @@
+@page "/propertymanagement/invoices/{Id:guid}"
+@attribute [OrganizationAuthorize("Owner", "Administrator", "PropertyManager")]
+@rendermode InteractiveServer
+
+<Nine.Shared.UI.Features.PropertyManagement.Invoices.ViewForm InvoiceId="@Id" />
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+}

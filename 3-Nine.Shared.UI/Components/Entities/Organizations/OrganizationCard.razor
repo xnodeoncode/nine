@@ -1,0 +1,124 @@
+@using Nine.Core.Entities
+@using Nine.Application.Services
+@using Nine.Application.Services.Workflows
+@using Nine.Core.Constants
+
+@namespace Nine.Shared.UI.Components.Entities.Organizations
+
+<!-- Organization Information Card -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Organization Information</h5>
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-primary" @onclick="() =>OnEdit.InvokeAsync()">
+                        <i class="bi bi-pencil"></i> Edit
+                    </button>
+                    @if (IsOwner)
+                    {
+                        @if (HasSampleData)
+                        {
+                            <button class="btn btn-sm btn-danger" @onclick="() => OnRemoveSampleData.InvokeAsync()" disabled="@IsRemovingSample">
+                                <i class="bi bi-trash"></i> @(IsRemovingSample ? "Removing..." : "Remove Sample Data")
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-sm btn-warning" @onclick="() => OnGenerateSampleData.InvokeAsync()" disabled="@IsGeneratingSample">
+                                <i class="bi bi-database-add"></i> @(IsGeneratingSample ? "Generating..." : "Add Sample Data")
+                            </button>
+                        }
+                    }
+                </div>
+            </div>
+            @if(OrganizationViewModel?.Organization != null)
+            {
+            <div class="card-body">
+                @if (HasSampleData && SampleDataSummary?.HasData == true)
+                {
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-database"></i>
+                        <strong>Sample Data Present:</strong>
+                        @SampleDataSummary.PropertyCount properties,
+                        @SampleDataSummary.TenantCount tenants,
+                        @SampleDataSummary.LeaseCount leases,
+                        @SampleDataSummary.InvoiceCount invoices,
+                        @SampleDataSummary.PaymentCount payments,
+                        @SampleDataSummary.CalendarEventCount calendar events
+                    </div>
+                }
+                <dl class="row">
+                    <dt class="col-sm-3">Organization Name:</dt>
+                    <dd class="col-sm-9"><strong>@OrganizationViewModel?.Organization?.Name</strong></dd>
+
+                    <dt class="col-sm-3">Display Name:</dt>
+                    <dd class="col-sm-9">@(OrganizationViewModel?.Organization?.DisplayName ?? "-")</dd>
+
+                    <dt class="col-sm-3">State:</dt>
+                    <dd class="col-sm-9">@(OrganizationViewModel?.Organization?.State ?? "-")</dd>
+
+                    <dt class="col-sm-3">Status:</dt>
+                    <dd class="col-sm-9">
+                        @if (OrganizationViewModel?.Organization?.IsActive == true)
+                        {
+                            <span class="badge bg-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Inactive</span>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-3">Owner:</dt>
+                    <dd class="col-sm-9">@OrganizationViewModel?.OrganizationOwner?.Email</dd>
+
+                    <dt class="col-sm-3">Created On:</dt>
+                    <dd class="col-sm-9">@OrganizationViewModel?.Organization?.CreatedOn.ToString("MMMM dd, yyyy")</dd>
+
+                    @if (OrganizationViewModel?.Organization?.LastModifiedOn.HasValue == true)
+                    {
+                        <dt class="col-sm-3">Last Modified:</dt>
+                        <dd class="col-sm-9">@OrganizationViewModel?.Organization?.LastModifiedOn.Value.ToString("MMMM dd, yyyy")</dd>
+                    }
+                </dl>
+            </div>
+            }
+            else
+            {
+                <div class="card-body">
+                    <div class="text-center text-muted">
+                        Organization details are not available.
+                    </div>
+                </div>
+            }
+        </div>
+
+@code {
+     
+    [Parameter, EditorRequired]
+    public OrganizationViewModel? OrganizationViewModel { get; set; } = new();
+
+    [Parameter]
+    public EventCallback OnEdit { get; set; }
+
+    [Parameter]
+    public EventCallback OnGenerateSampleData { get; set; }
+
+    [Parameter]
+    public EventCallback OnRemoveSampleData { get; set; }
+
+    [Parameter]
+    public bool IsOwner { get; set; }
+
+    [Parameter]
+    public bool IsGeneratingSample { get; set; }
+
+    [Parameter]
+    public bool IsRemovingSample { get; set; }
+
+    [Parameter]
+    public bool HasSampleData { get; set; }
+
+    [Parameter]
+    public SampleDataSummary? SampleDataSummary { get; set; }
+
+}

@@ -1,0 +1,13 @@
+@page "/propertymanagement/payments/{PaymentId:guid}/edit"
+@using Nine.Shared.UI.Features.PropertyManagement.Payments
+@attribute [OrganizationAuthorize("Owner", "Administrator", "PropertyManager")]
+@rendermode InteractiveServer
+
+<PageTitle>Edit Payment - Property Management</PageTitle>
+
+<Nine.Shared.UI.Features.PropertyManagement.Payments.EditForm PaymentId="@PaymentId" />
+
+@code {
+    [Parameter]
+    public Guid PaymentId { get; set; }
+}

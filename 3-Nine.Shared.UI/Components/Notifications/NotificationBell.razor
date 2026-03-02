@@ -1,0 +1,415 @@
+@using Nine.Application.Services
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NotificationService NotificationService
+@inject NavigationManager NavigationManager
+@namespace Nine.Shared.UI.Components.Notifications
+@implements IAsyncDisposable
+
+@if (isLoading)
+{
+    <div class="org-switcher-skeleton">
+        <span class="spinner-border spinner-border-sm" role="status"></span>
+    </div>
+}
+else
+{
+    <div class="dropdown notification-dropdown">
+        <div class="notification-bell">
+            <button class="notification-bell-button dropdown-toggle" @onclick="ToggleDropdown">
+                <i class="@((notificationCount > 0) ? "bi bi-bell-fill" : "bi bi-bell-slash")"></i> Notifications
+                @if (notificationCount > 0)
+                {
+                    <span class="notification-bell-badge">@notificationCount</span>
+                }
+                else
+                {
+                    <span class="notification-bell-badge-inactive">0</span>
+                }
+            </button>
+        </div>
+        @if (isDropdownOpen)
+        {
+            <ul class="dropdown-menu show">
+                @if (notifications.Count > 0)
+                {
+                    @foreach (var notification in notifications)
+                    {
+                        if(notification.IsRead)
+                        {
+                            <li class="dropdown-item">
+                                <i class="bi bi-envelope-open"></i><a @onclick="() => ShowNotification(notification)">@notification.Title</a>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="dropdown-item">
+                                <i class="bi bi-envelope"></i><a @onclick="() => ShowNotification(notification)">@notification.Title</a>
+                            </li>
+                        }
+                    }
+                    <hr />
+                    <li class="dropdown-item text-center">
+                        <a @onclick="MarkAllAsRead">Mark all as read</a>
+                    </li>
+                }
+                else
+                {
+                    <li class="dropdown-item text-center text-muted">
+                        <i class="bi bi-inbox me-2"></i>No new notifications
+                    </li>
+                    <hr />
+                }
+                <li class="dropdown-item text-center">
+                    <a @onclick="GoToNotificationCenter">View all</a>
+                </li>
+            </ul>
+        }
+    </div>
+}
+
+<!-- Notification Modal -->
+@if (showNotificationModal && selectedNotification != null)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-envelope-open"></i> @selectedNotification.Title
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <span class="badge bg-@GetCategoryBadgeColor(selectedNotification.Category) me-2">@selectedNotification.Category</span>
+                        <span class="badge bg-@GetTypeBadgeColor(selectedNotification.Type) me-2">@selectedNotification.Type</span>
+                        <small class="text-muted">@selectedNotification.CreatedOn.ToString("g")</small>
+                    </div>
+                    <div class="alert alert-light">
+                        <p class="mb-0">@selectedNotification.Message</p>
+                    </div>
+                    @if (selectedNotification.RelatedEntityId.HasValue)
+                    {
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                <i class="bi bi-link-45deg"></i> Related to: @selectedNotification.RelatedEntityType
+                            </small>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    @if (selectedNotification.RelatedEntityId.HasValue)
+                    {
+                        <button type="button" class="btn btn-primary" @onclick="ViewRelatedEntity">
+                            <i class="bi bi-box-arrow-up-right"></i> View Details
+                        </button>
+                    }
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Func<string?, Guid, string>? GetEntityRoute { get; set; }
+    
+    private Notification? selectedNotification;
+    private HubConnection? _hubConnection;
+
+    private bool showNotificationModal = false;
+   
+    private bool isLoading = true;
+    private bool isDropdownOpen = false;
+    private int notificationCount = 0;
+    private List<Notification> notifications = new List<Notification>();
+   
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadNotificationsAsync();
+        await InitializeSignalRConnectionAsync();
+    }
+
+    private async Task InitializeSignalRConnectionAsync()
+    {
+        try
+        {
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/notifications"))
+                .WithAutomaticReconnect() // Auto-reconnect on disconnect
+                .Build();
+
+            // Listen for new notifications
+            _hubConnection.On<object>("ReceiveNotification", async (notification) =>
+            {
+                await HandleNewNotificationAsync(notification);
+            });
+
+            // Listen for read notifications
+            _hubConnection.On<Guid, int>("NotificationRead", (notificationId, newCount) =>
+            {
+                HandleNotificationRead(notificationId, newCount);
+            });
+
+            // Listen for deleted notifications
+            _hubConnection.On<Guid, int>("NotificationDeleted", (notificationId, newCount) =>
+            {
+                HandleNotificationDeleted(notificationId, newCount);
+            });
+
+            // Listen for unread count updates
+            _hubConnection.On<int>("UpdateUnreadCount", (newCount) =>
+            {
+                notificationCount = newCount;
+                _ = InvokeAsync(StateHasChanged);
+            });
+
+            await _hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't fail component initialization
+            Console.WriteLine($"SignalR connection failed: {ex.Message}");
+        }
+    }
+
+    private async Task HandleNewNotificationAsync(object notificationData)
+    {
+        // Reload notifications to include the new one
+        await LoadNotificationsAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void HandleNotificationRead(Guid notificationId, int newCount)
+    {
+        var notification = notifications.FirstOrDefault(n => n.Id == notificationId);
+        if (notification != null)
+        {
+            notification.IsRead = true;
+            notification.ReadOn = DateTime.UtcNow;
+        }
+
+        notificationCount = newCount;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void HandleNotificationDeleted(Guid notificationId, int newCount)
+    {
+        notifications.RemoveAll(n => n.Id == notificationId);
+        notificationCount = newCount;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadNotificationsAsync()
+    {
+        isLoading = true;
+        notifications = await NotificationService.GetUnreadNotificationsAsync();
+        notifications = notifications.OrderByDescending(n => n.CreatedOn).Take(5).ToList();
+        notificationCount = notifications.Count(n => !n.IsRead);
+
+        isLoading = false;
+    }
+
+    private async Task ShowNotification(Notification notification)
+    {
+        selectedNotification = notification;
+        
+        try
+        {
+            // Mark as read in database first
+            await NotificationService.MarkAsReadAsync(notification.Id);
+            
+            // Only update local state after successful database update
+            notification.IsRead = true;
+            notification.ReadOn = DateTime.UtcNow;
+            notificationCount = notifications.Count(n => !n.IsRead);
+            
+            showNotificationModal = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to mark notification as read: {ex.Message}");
+            // Don't update local state if database update failed
+        }
+    }
+
+    private void CloseModal()
+    {
+        showNotificationModal = false;
+        selectedNotification = null;
+    }
+
+    private void ViewRelatedEntity()
+    {
+        if (selectedNotification?.RelatedEntityId.HasValue == true && GetEntityRoute != null)
+        {
+            var route = GetEntityRoute(
+                selectedNotification.RelatedEntityType,
+                selectedNotification.RelatedEntityId.Value);
+            NavigationManager.NavigateTo(route);
+            CloseModal();
+        }
+    }
+
+    private void ToggleDropdown()
+    {
+        isDropdownOpen = !isDropdownOpen;
+    }
+
+    private async Task MarkAllAsRead()
+    {
+        try
+        {
+            // Mark all as read in database first
+            await NotificationService.MarkAllAsReadAsync(notifications);
+            
+            // Only update local state after successful database update
+            foreach (var notification in notifications)
+            {
+                notification.IsRead = true;
+                notification.ReadOn = DateTime.UtcNow;
+            }
+            notificationCount = 0;
+            
+            ToggleDropdown();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to mark all notifications as read: {ex.Message}");
+            // Don't update local state if database update failed
+        }
+    }
+
+    private void GoToNotificationCenter()
+    {
+        ToggleDropdown();
+        NavigationManager.NavigateTo("/notifications");
+    }
+
+    private string GetCategoryBadgeColor(string category) => category switch
+    {
+        "Lease" => "primary",
+        "Payment" => "success",
+        "Maintenance" => "warning",
+        "Application" => "info",
+        "Security" => "danger",
+        _ => "secondary"
+    };
+
+    private string GetTypeBadgeColor(string type) => type switch
+    {
+        "Info" => "info",
+        "Warning" => "warning",
+        "Error" => "danger",
+        "Success" => "success",
+        _ => "secondary"
+    };
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+}
+
+<style>
+    .notification-bell {
+        position: relative;
+        display: inline-block;
+        z-index: 10000;
+    }
+
+    .notification-bell-button {
+        background: none;
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.375rem;
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        position: relative;
+        color: var(--bs-body-color);
+        transition: all 0.2s;
+        white-space: nowrap;
+        z-index: 10000;
+    }
+
+    .notification-bell-button:hover {
+        background-color: var(--bs-secondary-bg);
+        z-index: 10000;
+    }
+
+    .notification-bell-icon {
+        font-size: 18px;
+    }
+
+    .notification-bell-badge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background-color: #dc3545;
+        color: white;
+        border-radius: 50%;
+        padding: 2px 6px;
+        font-size: 10px;
+        font-weight: 600;
+    }
+
+    .notification-bell-badge-inactive {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background-color: #6c757d;
+        color: white;
+        border-radius: 50%;
+        padding: 2px 6px;
+        font-size: 10px;
+        font-weight: 600;
+    }
+
+    .notification-dropdown {
+        position: relative;
+        z-index: 9999;
+    }
+
+    .notification-dropdown .dropdown-menu {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        margin-top: 0.5rem;
+        min-width: 320px;
+        max-height: 400px;
+        overflow-y: auto;
+        z-index: 10000;
+    }
+
+    .notification-dropdown .dropdown-item {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--bs-border-color);
+        z-index: 10000;
+    }
+
+    .notification-dropdown .dropdown-item:last-child {
+        border-bottom: none;
+        z-index: 10000;
+    }
+
+    .notification-dropdown .dropdown-item a {
+        color: var(--bs-body-color);
+        text-decoration: none;
+        cursor: pointer;
+        z-index: 10000;
+    }
+
+    .notification-dropdown .dropdown-item a:hover {
+        text-decoration: underline;
+        z-index: 10000;
+    }
+
+    .notification-dropdown .dropdown-item i {
+        margin-right: 0.5rem;
+        z-index: 10000;
+    }
+</style>
