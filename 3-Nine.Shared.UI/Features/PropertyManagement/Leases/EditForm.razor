@@ -222,6 +222,11 @@ else
 
     private async Task UpdateLease()
     {
+        if (lease == null)
+        {
+            errorMessage = "Lease not found.";
+            return;
+        }
         try
         {
             isSubmitting = true;
