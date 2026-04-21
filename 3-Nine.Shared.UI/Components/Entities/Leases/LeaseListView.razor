@@ -121,9 +121,24 @@
                                                         </button>
                                                         @if (ShowEditDelete)
                                                         {
-                                                            <button class="btn btn-outline-secondary" @onclick="() => HandleEdit(lease.Id)" title="Edit">
-                                                                <i class="bi bi-pencil"></i>
-                                                            </button>
+                                                            @if (!ShowArchived)
+                                                            {
+                                                                <button class="btn btn-outline-secondary" @onclick="() => HandleEdit(lease.Id)" title="Edit">
+                                                                    <i class="bi bi-pencil"></i>
+                                                                </button>
+                                                            }
+                                                            @if (!ShowArchived && OnArchive.HasDelegate)
+                                                            {
+                                                                <button class="btn btn-outline-warning" @onclick="() => HandleArchive(lease.Id)" title="Archive">
+                                                                    <i class="bi bi-archive"></i>
+                                                                </button>
+                                                            }
+                                                            @if (ShowArchived && OnUnarchive.HasDelegate)
+                                                            {
+                                                                <button class="btn btn-outline-success" @onclick="() => HandleUnarchive(lease.Id)" title="Unarchive">
+                                                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                                                </button>
+                                                            }
                                                             <button class="btn btn-outline-danger" @onclick="() => HandleDelete(lease.Id)" title="Delete">
                                                                 <i class="bi bi-trash"></i>
                                                             </button>
@@ -242,9 +257,24 @@
                                             </button>
                                             @if (ShowEditDelete)
                                             {
-                                                <button class="btn btn-outline-secondary" @onclick="() => HandleEdit(lease.Id)" title="Edit">
-                                                    <i class="bi bi-pencil"></i>
-                                                </button>
+                                                @if (!ShowArchived)
+                                                {
+                                                    <button class="btn btn-outline-secondary" @onclick="() => HandleEdit(lease.Id)" title="Edit">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                }
+                                                @if (!ShowArchived && OnArchive.HasDelegate)
+                                                {
+                                                    <button class="btn btn-outline-warning" @onclick="() => HandleArchive(lease.Id)" title="Archive">
+                                                        <i class="bi bi-archive"></i>
+                                                    </button>
+                                                }
+                                                @if (ShowArchived && OnUnarchive.HasDelegate)
+                                                {
+                                                    <button class="btn btn-outline-success" @onclick="() => HandleUnarchive(lease.Id)" title="Unarchive">
+                                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                                    </button>
+                                                }
                                                 <button class="btn btn-outline-danger" @onclick="() => HandleDelete(lease.Id)" title="Delete">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
@@ -337,6 +367,15 @@
     [Parameter]
     public EventCallback<Guid> OnDelete { get; set; }
 
+    [Parameter]
+    public EventCallback<Guid> OnArchive { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnUnarchive { get; set; }
+
+    [Parameter]
+    public bool ShowArchived { get; set; }
+
     // Lease status options for filter dropdown
     private List<string> leaseStatuses = new() { "Active", "Expired", "Terminated", "Pending" };
     
@@ -384,6 +423,16 @@
     private async Task HandleDelete(Guid leaseId)
     {
         await OnDelete.InvokeAsync(leaseId);
+    }
+
+    private async Task HandleArchive(Guid leaseId)
+    {
+        await OnArchive.InvokeAsync(leaseId);
+    }
+
+    private async Task HandleUnarchive(Guid leaseId)
+    {
+        await OnUnarchive.InvokeAsync(leaseId);
     }
     
     private string GetStatusBadgeClass(string status)

@@ -1,3 +1,4 @@
+using Nine.Application.Models;
 using Nine.Core.Interfaces.Services;
 using Nine.Core.Constants;
 using Nine.Core.Entities;
@@ -171,12 +172,39 @@ namespace Nine.Application.Services
         }
 
         /// <summary>
-        /// Deletes (soft deletes) a lease and updates property availability if needed.
+        /// Deletes a lease and all related child records (invoices with payments, security deposits,
+        /// documents), then updates property availability if the lease was active.
         /// </summary>
         public override async Task<bool> DeleteAsync(Guid id)
         {
             var lease = await GetByIdAsync(id);
             if (lease == null) return false;
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+            // Cascade delete: payments → invoices → security deposits → documents
+            var invoiceIds = await _context.Invoices
+                .Where(i => i.LeaseId == id)
+                .Select(i => i.Id)
+                .ToListAsync();
+
+            foreach (var invoiceId in invoiceIds)
+            {
+                var payments = await _context.Payments.Where(p => p.InvoiceId == invoiceId).ToListAsync();
+                _context.Payments.RemoveRange(payments);
+            }
+
+            var invoices = await _context.Invoices.Where(i => i.LeaseId == id).ToListAsync();
+            _context.Invoices.RemoveRange(invoices);
+
+            var securityDeposits = await _context.SecurityDeposits.Where(s => s.LeaseId == id).ToListAsync();
+            _context.SecurityDeposits.RemoveRange(securityDeposits);
+
+            var documents = await _context.Documents.Where(d => d.LeaseId == id).ToListAsync();
+            _context.Documents.RemoveRange(documents);
+
+            await _context.SaveChangesAsync();
 
             var result = await base.DeleteAsync(id);
 
@@ -204,7 +232,14 @@ namespace Nine.Application.Services
                 }
             }
 
+            await transaction.CommitAsync();
             return result;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         #endregion
@@ -223,7 +258,6 @@ namespace Nine.Application.Services
                 var lease = await _context.Leases
                     .Include(l => l.Property)
                     .Include(l => l.Tenant)
-                    .Include(l => l.Document)
                     .Include(l => l.Documents)
                     .Include(l => l.Invoices)
                         .ThenInclude(i => i.Payments)
@@ -260,6 +294,29 @@ namespace Nine.Application.Services
             catch (Exception ex)
             {
                 await HandleExceptionAsync(ex, "GetLeasesWithRelations");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Gets all archived leases with Property and Tenant relations.
+        /// </summary>
+        public async Task<List<Lease>> GetArchivedLeasesWithRelationsAsync()
+        {
+            try
+            {
+                var organizationId = await _userContext.GetActiveOrganizationIdAsync();
+
+                return await _context.Leases
+                    .Include(l => l.Property)
+                    .Include(l => l.Tenant)
+                    .Where(l => !l.IsDeleted && l.IsArchived && l.Property.OrganizationId == organizationId)
+                    .OrderByDescending(l => l.StartDate)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                await HandleExceptionAsync(ex, "GetArchivedLeasesWithRelations");
                 throw;
             }
         }
@@ -499,6 +556,37 @@ namespace Nine.Application.Services
                 await HandleExceptionAsync(ex, "UpdateLeaseStatus");
                 throw;
             }
+        }
+
+        #endregion
+
+        #region Cascade Summary
+
+        /// <summary>
+        /// Returns a count of related records that would be permanently deleted with this lease.
+        /// </summary>
+        public override async Task<CascadeSummary> GetDeleteCascadeSummaryAsync(Guid id)
+        {
+            var counts = new Dictionary<string, int>
+            {
+                ["Invoices"] = await _context.Invoices.CountAsync(x => x.LeaseId == id && !x.IsDeleted),
+                ["Security Deposits"] = await _context.SecurityDeposits.CountAsync(x => x.LeaseId == id && !x.IsDeleted),
+                ["Documents"] = await _context.Documents.CountAsync(x => x.LeaseId == id && !x.IsDeleted),
+            };
+            return new CascadeSummary { EntityName = "Lease", Counts = counts };
+        }
+
+        /// <summary>
+        /// Returns a count of related records that would be archived with this lease.
+        /// </summary>
+        public override async Task<CascadeSummary> GetArchiveCascadeSummaryAsync(Guid id)
+        {
+            var counts = new Dictionary<string, int>
+            {
+                ["Invoices"] = await _context.Invoices.CountAsync(x => x.LeaseId == id && !x.IsDeleted && !x.IsArchived),
+                ["Documents"] = await _context.Documents.CountAsync(x => x.LeaseId == id && !x.IsDeleted && !x.IsArchived),
+            };
+            return new CascadeSummary { EntityName = "Lease", Counts = counts };
         }
 
         #endregion

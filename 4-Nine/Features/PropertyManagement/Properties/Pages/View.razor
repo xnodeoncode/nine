@@ -77,6 +77,12 @@
                             <button class="btn btn-outline-secondary" @onclick="ViewDocuments">
                                 <i class="bi bi-folder"></i> View Documents
                             </button>
+                            @if (_hasArchivedRelated)
+                            {
+                                <button class="btn btn-outline-warning" @onclick="ShowArchivedRecordsModal">
+                                    <i class="bi bi-archive"></i> This property has archived records
+                                </button>
+                            }
                         </div>
                     </div>
                 </div>
@@ -211,6 +217,27 @@
     </FooterContent>
 </Modal>
 
+<Modal IsVisible="@_showArchivedRecordsModal"
+       Title="Archived Records"
+       OnClose="@CloseArchivedRecordsModal">
+    <ChildContent>
+        <p>The following records are currently archived for this property:</p>
+        @if (_archivedSummary != null)
+        {
+            <ul class="mb-2">
+                @foreach (var (label, count) in _archivedSummary.Counts.Where(c => c.Value > 0))
+                {
+                    <li>@count @label</li>
+                }
+            </ul>
+        }
+        <p class="text-muted small mb-0">Use the <strong>Show Archived</strong> toggle on each list page to view individual archived records. To restore all records, archive and then unarchive this property and choose <em>Restore All</em>.</p>
+    </ChildContent>
+    <FooterContent>
+        <button class="btn btn-secondary" @onclick="@CloseArchivedRecordsModal">Close</button>
+    </FooterContent>
+</Modal>
+
 @code {
     [Parameter]
     public Guid PropertyId { get; set; }
@@ -222,6 +249,9 @@
     private bool showLeaseModal = false;
     private bool showRepairModal = false;
     private bool showInspectionModal = false;
+    private bool _showArchivedRecordsModal = false;
+    private CascadeSummary? _archivedSummary;
+    private bool _hasArchivedRelated => _archivedSummary is { HasRelatedRecords: true };
     private bool showInspectionViewButton => lastInspection != null && lastInspection.Id != Guid.Empty && property.LastRoutineInspectionDate.HasValue;
     private bool hasCurrentLease => property.Leases.Any(l => !l.IsDeleted &&
         l.Status != ApplicationConstants.LeaseStatuses.Expired &&
@@ -237,6 +267,7 @@
     {
         property = await PropertyService.GetPropertyWithRelationsAsync(PropertyId) ?? new Property();
         lastInspection = await InspectionService.GetLastRoutineInspectionAsync(PropertyId) ?? new Inspection();
+        _archivedSummary = await PropertyService.GetUnarchiveCascadeSummaryAsync(PropertyId);
     }
 
     private void EditProperty()
@@ -334,6 +365,16 @@
     {
         showInspectionModal = false;
         selectedInspection = null;
+    }
+
+    private void ShowArchivedRecordsModal()
+    {
+        _showArchivedRecordsModal = true;
+    }
+
+    private void CloseArchivedRecordsModal()
+    {
+        _showArchivedRecordsModal = false;
     }
 
     // View Full Page methods

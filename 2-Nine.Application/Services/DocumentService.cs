@@ -119,7 +119,7 @@ namespace Nine.Application.Services
         /// <summary>
         /// Gets all documents with related entities.
         /// </summary>
-        public async Task<List<Document>> GetDocumentsWithRelationsAsync()
+        public async Task<List<Document>> GetDocumentsWithRelationsAsync(bool includeArchived = false)
         {
             try
             {
@@ -134,7 +134,7 @@ namespace Nine.Application.Services
                         .ThenInclude(l => l!.Tenant)
                     .Include(d => d.Invoice)
                     .Include(d => d.Payment)
-                    .Where(d => !d.IsDeleted && d.OrganizationId == organizationId)
+                    .Where(d => !d.IsDeleted && (includeArchived || !d.IsArchived) && d.OrganizationId == organizationId)
                     .OrderByDescending(d => d.CreatedOn)
                     .ToListAsync();
             }
@@ -164,6 +164,7 @@ namespace Nine.Application.Services
                     .Include(d => d.Lease)
                     .Where(d => d.PropertyId == propertyId
                         && !d.IsDeleted
+                        && !d.IsArchived
                         && d.OrganizationId == organizationId)
                     .OrderByDescending(d => d.CreatedOn)
                     .ToListAsync();
@@ -190,6 +191,7 @@ namespace Nine.Application.Services
                     .Include(d => d.Lease)
                     .Where(d => d.TenantId == tenantId
                         && !d.IsDeleted
+                        && !d.IsArchived
                         && d.OrganizationId == organizationId)
                     .OrderByDescending(d => d.CreatedOn)
                     .ToListAsync();
@@ -217,6 +219,7 @@ namespace Nine.Application.Services
                         .ThenInclude(l => l!.Tenant)
                     .Where(d => d.LeaseId == leaseId
                         && !d.IsDeleted
+                        && !d.IsArchived
                         && d.OrganizationId == organizationId)
                     .OrderByDescending(d => d.CreatedOn)
                     .ToListAsync();
@@ -241,6 +244,7 @@ namespace Nine.Application.Services
                     .Include(d => d.Invoice)
                     .Where(d => d.InvoiceId == invoiceId
                         && !d.IsDeleted
+                        && !d.IsArchived
                         && d.OrganizationId == organizationId)
                     .OrderByDescending(d => d.CreatedOn)
                     .ToListAsync();

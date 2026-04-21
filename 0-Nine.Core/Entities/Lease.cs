@@ -86,18 +86,12 @@ namespace Nine.Core.Entities
         [StringLength(500)]
         public string? TerminationReason { get; set; }
 
-        // Document Tracking
-        public Guid? DocumentId { get; set; }
-
         // Navigation properties
         [ForeignKey("PropertyId")]
         public virtual Property Property { get; set; } = null!;
 
         [ForeignKey("TenantId")]
         public virtual Tenant? Tenant { get; set; }
-
-        [ForeignKey("DocumentId")]
-        public virtual Document? Document { get; set; }
 
         public virtual ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
         public virtual ICollection<Document> Documents { get; set; } = new List<Document>();

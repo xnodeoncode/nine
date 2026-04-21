@@ -36,20 +36,28 @@
     TotalMonthlyRent="@totalMonthlyRent"
     ShowTotalProperties="false" ShowAvailableProperties="true" ShowOccupiedProperties="true" ShowTotalMonthlyRent="true" />
 <hr />
-<ul class="nav nav-tabs mb-3">
-    <li class="nav-item">
-        <button class="nav-link @(showActiveTab ? "active" : "")" @onclick='() => SwitchTab(true)'>
-            <i class="bi bi-check-circle me-1"></i> Active
-            <span class="badge bg-success ms-2">@activeCount</span>
-        </button>
-    </li>
-    <li class="nav-item">
-        <button class="nav-link @(!showActiveTab ? "active" : "")" @onclick='() => SwitchTab(false)'>
-            <i class="bi bi-pause-circle me-1"></i> Inactive
-            <span class="badge bg-secondary ms-2">@inactiveCount</span>
-        </button>
-    </li>
-</ul>
+<div class="d-flex align-items-center justify-content-between mb-1">
+    <ul class="nav nav-tabs mb-0">
+        <li class="nav-item">
+            <button class="nav-link @(showActiveTab ? "active" : "")" @onclick='() => SwitchTab(true)'>
+                <i class="bi bi-check-circle me-1"></i> Active
+                <span class="badge bg-success ms-2">@activeCount</span>
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link @(!showActiveTab ? "active" : "")" @onclick='() => SwitchTab(false)'>
+                <i class="bi bi-pause-circle me-1"></i> Inactive
+                <span class="badge bg-secondary ms-2">@inactiveCount</span>
+            </button>
+        </li>
+    </ul>
+    <div class="form-check form-switch ms-2">
+        <input class="form-check-input" type="checkbox" id="showArchived"
+               @bind="_showArchived" @bind:after="LoadProperties" />
+        <label class="form-check-label text-muted" for="showArchived">Show Archived</label>
+    </div>
+</div>
+<div class="mb-3"></div>
 
 <PropertyListView Properties="@filteredProperties"
     ViewMode="@viewMode"
@@ -62,12 +70,51 @@
     OnSort="HandleSort"
     OnEdit="EditProperty"
     OnView="ViewPropertyDetails"
-    OnDelete="DeleteProperty"
+    OnDelete="ShowDeleteModal"
+    OnArchive="ShowArchiveModal"
+    OnUnarchive="UnarchiveProperty"
+    ShowArchived="@_showArchived"
     OnStatusFilterChanged="StatusFilterChanged"
     OnClearFilters="ClearFilters"
     OnSearchChanged="SearchChanged"
     SearchTerm="@searchTerm"
     ShowMetrics="false" />
+
+<ActionConfirmModal
+    IsVisible="@_showArchiveModal"
+    Variant="warning"
+    Title="Archive Property"
+    Message="This record will be hidden from daily operations. You can restore it at any time."
+    ConfirmText="Archive"
+    Cascade="@_cascade"
+    IsProcessing="@_isProcessing"
+    OnConfirm="ConfirmArchive"
+    OnCancel="CloseModals" />
+
+<ActionConfirmModal
+    IsVisible="@_showDeleteModal"
+    Variant="danger"
+    Title="Delete Property"
+    Message="This action is permanent and cannot be undone. Be sure to create a backup of your data if needed."
+    ConfirmText="Delete Permanently"
+    Cascade="@_cascade"
+    IsProcessing="@_isProcessing"
+    OnConfirm="ConfirmDelete"
+    OnCancel="CloseModals" />
+
+<ActionConfirmModal
+    IsVisible="@_showUnarchiveModal"
+    Variant="warning"
+    Title="Restore Archived Property"
+    Message="This property has archived records. Choose how you would like to restore it."
+    ConfirmText="Restore All"
+    SecondaryConfirmText="Property Only"
+    CascadeLabel="Archived records that can be restored:"
+    Cascade="@_unarchiveSummary"
+    IsProcessing="@_isProcessing"
+    OnConfirm="ConfirmUnarchiveAll"
+    OnSecondaryConfirm="ConfirmUnarchivePropertyOnly"
+    OnCancel="CloseModals" />
 
 @code {
     private List<Property> allProperties = new List<Property>();
@@ -80,24 +127,36 @@
     private string sortColumn = nameof(Property.Address);
     private bool sortAscending = true;
     private string statusFilter = string.Empty;
-
     private string searchTerm = string.Empty;
-
     private int availableProperties = 0;
-
     private int maxProperties = 9;
-
     private int occupiedProperties = 0;
-
     private decimal totalMonthlyRent = 0.00m;
+
+    // Archive/Delete modal state
+    private Guid _pendingId;
+    private CascadeSummary? _cascade;
+    private bool _showArchiveModal;
+    private bool _showDeleteModal;
+    private bool _showUnarchiveModal;
+    private CascadeSummary? _unarchiveSummary;
+    private bool _isProcessing;
+    private bool _showArchived;
 
     protected override async Task OnInitializedAsync()
     {
-        allProperties = await PropertyService.GetAllAsync();
+        await LoadProperties();
+    }
+
+    private async Task LoadProperties()
+    {
+        allProperties = _showArchived
+            ? await PropertyService.GetArchivedAsync()
+            : await PropertyService.GetAllAsync();
         availableProperties = allProperties.Count(p => p.Status == ApplicationConstants.PropertyStatuses.Available);
         occupiedProperties = allProperties.Count(p => ApplicationConstants.PropertyStatuses.OccupiedStatuses.Contains(p.Status));
         totalMonthlyRent = allProperties.Where(p => p.IsActive).Sum(p => p.MonthlyRent);
-        ApplyTab(true);
+        ApplyTab(showActiveTab);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -220,5 +279,81 @@
     private void DeleteProperty(Guid propertyId)
     {
         NavigationManager.NavigateTo($"/propertymanagement/properties/delete/{propertyId}");
+    }
+
+    private async Task ShowArchiveModal(Guid id)
+    {
+        _pendingId = id;
+        _cascade = await PropertyService.GetArchiveCascadeSummaryAsync(id);
+        _showArchiveModal = true;
+    }
+
+    private async Task ShowDeleteModal(Guid id)
+    {
+        _pendingId = id;
+        _cascade = await PropertyService.GetDeleteCascadeSummaryAsync(id);
+        _showDeleteModal = true;
+    }
+
+    private async Task ConfirmArchive()
+    {
+        _isProcessing = true;
+        await PropertyService.ArchiveAsync(_pendingId);
+        _isProcessing = false;
+        CloseModals();
+        await LoadProperties();
+    }
+
+    private async Task ConfirmDelete()
+    {
+        _isProcessing = true;
+        await PropertyService.DeleteAsync(_pendingId);
+        _isProcessing = false;
+        CloseModals();
+        await LoadProperties();
+    }
+
+    private async Task UnarchiveProperty(Guid id)
+    {
+        _pendingId = id;
+        _unarchiveSummary = await PropertyService.GetUnarchiveCascadeSummaryAsync(id);
+        if (_unarchiveSummary.HasRelatedRecords)
+        {
+            _showUnarchiveModal = true;
+        }
+        else
+        {
+            _isProcessing = true;
+            await PropertyService.UnarchivePropertyAsync(id, false);
+            _isProcessing = false;
+            await LoadProperties();
+        }
+    }
+
+    private async Task ConfirmUnarchiveAll()
+    {
+        _isProcessing = true;
+        await PropertyService.UnarchivePropertyAsync(_pendingId, true);
+        _isProcessing = false;
+        CloseModals();
+        await LoadProperties();
+    }
+
+    private async Task ConfirmUnarchivePropertyOnly()
+    {
+        _isProcessing = true;
+        await PropertyService.UnarchivePropertyAsync(_pendingId, false);
+        _isProcessing = false;
+        CloseModals();
+        await LoadProperties();
+    }
+
+    private void CloseModals()
+    {
+        _showArchiveModal = false;
+        _showDeleteModal = false;
+        _showUnarchiveModal = false;
+        _cascade = null;
+        _unarchiveSummary = null;
     }
 }

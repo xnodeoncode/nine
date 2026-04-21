@@ -216,11 +216,10 @@ namespace Nine.Application.Services
         }
 
         /// <summary>
-        /// Deletes an inspection (soft delete).
+        /// Deletes an inspection and its associated calendar event.
         /// </summary>
         public override async Task<bool> DeleteAsync(Guid id)
         {
-            var userId = await GetUserIdAsync();
             var organizationId = await GetActiveOrganizationIdAsync();
 
             var inspection = await _context.Inspections
@@ -231,18 +230,28 @@ namespace Nine.Application.Services
                 throw new KeyNotFoundException($"Inspection {id} not found.");
             }
 
-            inspection.IsDeleted = true;
-            inspection.LastModifiedBy = userId;
-            inspection.LastModifiedOn = DateTime.UtcNow;
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // Delete associated calendar event before deleting the inspection
+                if (inspection.CalendarEventId.HasValue)
+                {
+                    var calendarEvent = await _context.CalendarEvents.FindAsync(inspection.CalendarEventId.Value);
+                    if (calendarEvent != null) _context.CalendarEvents.Remove(calendarEvent);
+                    await _context.SaveChangesAsync();
+                }
 
-            await _context.SaveChangesAsync();
+                _logger.LogInformation("Deleted inspection {InspectionId}", id);
 
-            // TODO: Delete associated calendar event when interface method is available
-            // await _calendarEventService.DeleteEventBySourceAsync(id, nameof(Inspection));
-
-            _logger.LogInformation("Deleted inspection {InspectionId}", id);
-
-            return true;
+                bool result = await base.DeleteAsync(id);
+                await transaction.CommitAsync();
+                return result;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         /// <summary>

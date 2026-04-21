@@ -1146,17 +1146,6 @@ namespace Nine.Application.Services
                     _dbContext.Inspections.Update(inspection);
                 }
 
-                // Clear Lease.DocumentId if any lease links to this document
-                var lease = await _dbContext.Leases
-                    .FirstOrDefaultAsync(l => l.DocumentId == document.Id);
-                if (lease != null)
-                {
-                    lease.DocumentId = null;
-                    lease.LastModifiedBy = _userId;
-                    lease.LastModifiedOn = DateTime.UtcNow;
-                    _dbContext.Leases.Update(lease);
-                }
-
                 // Clear Invoice.DocumentId if any invoice links to this document
                 if (document.InvoiceId != null)
                 {

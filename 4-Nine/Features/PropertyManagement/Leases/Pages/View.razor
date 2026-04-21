@@ -43,6 +43,7 @@
         </div>
         <div class="col-md-4">
             <LeaseQuickActionsCard Lease="lease"
+                HasLeaseDocument="@(document != null)"
                 OnCreateInvoice="CreateInvoice"
                 OnGenerateLeaseDocument="GenerateLeaseDocument"
                 OnViewDocument="ViewDocument"
@@ -335,11 +336,8 @@
                 .OrderBy(p => p.PaidOn)
                 .ToList();
 
-        // Load the document if it exists
-        if (lease.DocumentId != null)
-        {
-            document = await DocumentService.GetByIdAsync(lease.DocumentId.Value);
-        }
+        // Load the lease agreement document if one has been generated
+        document = lease.Documents.FirstOrDefault(d => d.DocumentType == ApplicationConstants.DocumentTypes.LeaseAgreement);
     }
 
     private async Task LoadLease()
@@ -358,11 +356,9 @@
             .Take(5)
             .ToList();
 
-        // Load the document if it exists
-        if (lease.DocumentId != null)
-        {
-            document = await DocumentService.GetByIdAsync(lease.DocumentId.Value);
-        }
+        // Load the lease agreement document if one has been generated
+        var leaseDocuments = await DocumentService.GetDocumentsByLeaseIdAsync(lease.Id);
+        document = leaseDocuments.FirstOrDefault(d => d.DocumentType == ApplicationConstants.DocumentTypes.LeaseAgreement);
     }
 
     private void BackToProperty()
@@ -431,11 +427,6 @@
 
             // Save to database
             await DocumentService.CreateAsync(document);
-
-            // Update lease with DocumentId
-            lease.DocumentId = document.Id;
-            
-            await LeaseService.UpdateAsync(lease);
 
             // Reload lease and document
             await LoadLease();

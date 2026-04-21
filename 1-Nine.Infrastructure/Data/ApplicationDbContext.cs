@@ -148,11 +148,6 @@ namespace Nine.Infrastructure.Data
                     .HasForeignKey(l => l.TenantId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                entity.HasOne(l => l.Document)
-                    .WithMany()
-                    .HasForeignKey(l => l.DocumentId)
-                    .OnDelete(DeleteBehavior.SetNull);
-
                 entity.Property(e => e.MonthlyRent).HasPrecision(18, 2);
                 entity.Property(e => e.SecurityDeposit).HasPrecision(18, 2);
 

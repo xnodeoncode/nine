@@ -1760,9 +1760,6 @@ namespace Nine.Infrastructure.Migrations
                     b.Property<DateTime?>("DeclinedOn")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid?>("DocumentId")
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("TEXT");
 
@@ -1875,8 +1872,6 @@ namespace Nine.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("DocumentId");
 
                     b.HasIndex("IsActive");
 
@@ -4352,11 +4347,6 @@ namespace Nine.Infrastructure.Migrations
 
             modelBuilder.Entity("Nine.Core.Entities.Lease", b =>
                 {
-                    b.HasOne("Nine.Core.Entities.Document", "Document")
-                        .WithMany()
-                        .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("Nine.Core.Entities.Organization", null)
                         .WithMany("Leases")
                         .HasForeignKey("OrganizationId")
@@ -4374,8 +4364,6 @@ namespace Nine.Infrastructure.Migrations
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("Document");
 
                     b.Navigation("Property");
 

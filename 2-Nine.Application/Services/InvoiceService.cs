@@ -1,3 +1,4 @@
+using Nine.Application.Models;
 using Nine.Core.Interfaces.Services;
 using Nine.Core.Constants;
 using Nine.Core.Entities;
@@ -481,5 +482,59 @@ namespace Nine.Application.Services
                 throw;
             }
         }
+
+        #region Delete Override
+
+        /// <summary>
+        /// Deletes an invoice and its associated payments (cascade delete).
+        /// </summary>
+        public override async Task<bool> DeleteAsync(Guid id)
+        {
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var payments = await _context.Payments.Where(p => p.InvoiceId == id).ToListAsync();
+                _context.Payments.RemoveRange(payments);
+                await _context.SaveChangesAsync();
+                bool result = await base.DeleteAsync(id);
+                await transaction.CommitAsync();
+                return result;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        #endregion
+
+        #region Cascade Summary
+
+        /// <summary>
+        /// Returns a count of related records that would be permanently deleted with this invoice.
+        /// </summary>
+        public override async Task<CascadeSummary> GetDeleteCascadeSummaryAsync(Guid id)
+        {
+            var counts = new Dictionary<string, int>
+            {
+                ["Payments"] = await _context.Payments.CountAsync(x => x.InvoiceId == id && !x.IsDeleted),
+            };
+            return new CascadeSummary { EntityName = "Invoice", Counts = counts };
+        }
+
+        /// <summary>
+        /// Returns a count of related records that would be archived with this invoice.
+        /// </summary>
+        public override async Task<CascadeSummary> GetArchiveCascadeSummaryAsync(Guid id)
+        {
+            var counts = new Dictionary<string, int>
+            {
+                ["Payments"] = await _context.Payments.CountAsync(x => x.InvoiceId == id && !x.IsDeleted && !x.IsArchived),
+            };
+            return new CascadeSummary { EntityName = "Invoice", Counts = counts };
+        }
+
+        #endregion
     }
 }
