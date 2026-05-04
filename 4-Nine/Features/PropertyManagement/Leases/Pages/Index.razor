@@ -57,13 +57,7 @@
         }
     </div>
 </div>
-<div class="d-flex justify-content-end align-items-center mb-2">
-    <div class="form-check form-switch">
-        <input class="form-check-input" type="checkbox" id="showArchivedLeases"
-               @bind="_showArchived" @bind:after="LoadLeases" />
-        <label class="form-check-label text-muted" for="showArchivedLeases">Show Archived</label>
-    </div>
-</div>
+
 <hr />
 @if (leases == null)
 {
@@ -73,7 +67,7 @@
         </div>
     </div>
 }
-else if (!leases.Any())
+else if (!leases.Any() && !_showArchived)
 {
     <div class="alert alert-info">
         @if (filterTenant != null)
@@ -121,13 +115,14 @@ else
         OnStatusFilterChanged="@HandleStatusFilterChanged"
         OnTenantFilterChanged="@HandleTenantFilterChanged"
         OnGroupByPropertyChanged="@HandleGroupByPropertyChanged"
+        OnShowArchivedChanged="@HandleShowArchivedChanged"
         OnSort="@HandleSort"
         OnTogglePropertyGroup="@HandleTogglePropertyGroup"
         OnView="@HandleView"
         OnEdit="@HandleEdit"
         OnDelete="@HandleDelete"
         OnArchive="@HandleArchive"
-        OnUnarchive="@HandleUnarchive"
+        OnRestore="@HandleRestore"
         ShowArchived="@_showArchived" />
     
     @if (totalPages > 1 && !groupByProperty)
@@ -402,6 +397,13 @@ else
         FilterLeases();
         await Task.CompletedTask;
     }
+
+    private async Task HandleShowArchivedChanged(bool value)
+    {
+        _showArchived = value;
+        await LoadLeases();
+        FilterLeases();
+    }
     
     private async Task HandleSort((string Column, bool Ascending) sort)
     {
@@ -440,10 +442,11 @@ else
         await ShowArchiveModal(leaseId);
     }
 
-    private async Task HandleUnarchive(Guid leaseId)
+    private async Task HandleRestore(Guid leaseId)
     {
-        await LeaseService.UnarchiveAsync(leaseId);
+        await LeaseService.RestoreAsync(leaseId);
         await LoadLeases();
+        FilterLeases();
     }
     
     private void TogglePropertyGroup(Guid propertyId)
@@ -593,6 +596,7 @@ else
         _isProcessing = false;
         CloseModals();
         await LoadLeases();
+        FilterLeases();
     }
 
     private async Task ConfirmDelete()
@@ -602,6 +606,7 @@ else
         _isProcessing = false;
         CloseModals();
         await LoadLeases();
+        FilterLeases();
     }
 
     private void CloseModals()

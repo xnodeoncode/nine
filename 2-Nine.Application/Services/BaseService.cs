@@ -382,7 +382,7 @@ namespace Nine.Application.Services
         /// <summary>
         /// Restores an archived entity back to active status.
         /// </summary>
-        public virtual async Task<bool> UnarchiveAsync(Guid id)
+        public virtual async Task<bool> RestoreAsync(Guid id)
         {
             try
             {

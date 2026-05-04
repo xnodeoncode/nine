@@ -662,7 +662,7 @@ else
 
     private async Task UnarchiveInvoice(Guid id)
     {
-        await InvoiceService.UnarchiveAsync(id);
+        await InvoiceService.RestoreAsync(id);
         await LoadInvoices();
     }
 

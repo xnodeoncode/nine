@@ -622,6 +622,13 @@ namespace Nine.Application.Services
                         .SetProperty(x => x.IsArchived, true)
                         .SetProperty(x => x.ArchivedOn, now)
                         .SetProperty(x => x.ArchivedBy, userId));
+
+                await _context.Repairs
+                    .Where(x => x.PropertyId == id && !x.IsDeleted && !x.IsArchived)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(x => x.IsArchived, true)
+                        .SetProperty(x => x.ArchivedOn, now)
+                        .SetProperty(x => x.ArchivedBy, userId));
             }
 
             return result;
@@ -632,9 +639,9 @@ namespace Nine.Application.Services
         /// IsActive and Status are NOT changed — the property remains inactive and off market.
         /// The user must explicitly reactivate a property to avoid breaching the active property limit.
         /// </summary>
-        public override async Task<bool> UnarchiveAsync(Guid id)
+        public override async Task<bool> RestoreAsync(Guid id)
         {
-            return await base.UnarchiveAsync(id);
+            return await base.RestoreAsync(id);
         }
 
         /// <summary>
@@ -642,9 +649,9 @@ namespace Nine.Application.Services
         /// all archived related records (leases, inspections, maintenance requests, documents).
         /// IsActive and Status are NOT changed — the user must explicitly reactivate the property.
         /// </summary>
-        public async Task<bool> UnarchivePropertyAsync(Guid id, bool restoreRelated)
+        public async Task<bool> RestorePropertyAsync(Guid id, bool restoreRelated)
         {
-            var result = await base.UnarchiveAsync(id);
+            var result = await base.RestoreAsync(id);
 
             if (result && restoreRelated)
             {
@@ -675,6 +682,13 @@ namespace Nine.Application.Services
                         .SetProperty(x => x.IsArchived, false)
                         .SetProperty(x => x.ArchivedOn, x => (DateTime?)null)
                         .SetProperty(x => x.ArchivedBy, x => (string?)null));
+
+                await _context.Repairs
+                    .Where(x => x.PropertyId == id && !x.IsDeleted && x.IsArchived)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(x => x.IsArchived, false)
+                        .SetProperty(x => x.ArchivedOn, x => (DateTime?)null)
+                        .SetProperty(x => x.ArchivedBy, x => (string?)null));
             }
 
             return result;
@@ -684,7 +698,7 @@ namespace Nine.Application.Services
         /// Returns a count of currently-archived related records for this property.
         /// Used to populate the unarchive confirmation prompt.
         /// </summary>
-        public async Task<CascadeSummary> GetUnarchiveCascadeSummaryAsync(Guid id)
+        public async Task<CascadeSummary> GetRestoreCascadeSummaryAsync(Guid id)
         {
             var counts = new Dictionary<string, int>
             {
@@ -692,6 +706,7 @@ namespace Nine.Application.Services
                 ["Inspections"] = await _context.Inspections.CountAsync(x => x.PropertyId == id && !x.IsDeleted && x.IsArchived),
                 ["Maintenance Requests"] = await _context.MaintenanceRequests.CountAsync(x => x.PropertyId == id && !x.IsDeleted && x.IsArchived),
                 ["Documents"] = await _context.Documents.CountAsync(x => x.PropertyId == id && !x.IsDeleted && x.IsArchived),
+                ["Repairs"] = await _context.Repairs.CountAsync(x => x.PropertyId == id && !x.IsDeleted && x.IsArchived),
             };
             return new CascadeSummary { EntityName = "Property", Counts = counts };
         }
@@ -840,6 +855,7 @@ namespace Nine.Application.Services
                 ["Inspections"] = await _context.Inspections.CountAsync(x => x.PropertyId == id && !x.IsDeleted && !x.IsArchived),
                 ["Maintenance Requests"] = await _context.MaintenanceRequests.CountAsync(x => x.PropertyId == id && !x.IsDeleted && !x.IsArchived),
                 ["Documents"] = await _context.Documents.CountAsync(x => x.PropertyId == id && !x.IsDeleted && !x.IsArchived),
+                ["Repairs"] = await _context.Repairs.CountAsync(x => x.PropertyId == id && !x.IsDeleted && !x.IsArchived),
             };
             return new CascadeSummary { EntityName = "Property", Counts = counts };
         }

@@ -68,7 +68,55 @@
         </div>
     </div>
 }
-else if (!allDocuments.Any())
+<!-- Filters — always visible so user can toggle archived/active view -->
+<div class="row mb-3">
+    <div class="col-md-3">
+        <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control" placeholder="Search documents..." @bind="searchTerm" @onkeyup="ApplyFilters" />
+        </div>
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" @bind="selectedDocumentType" @bind:after="ApplyFilters">
+            <option value="">All Document Types</option>
+            <option value="Lease Agreement">Lease Agreement</option>
+            <option value="Invoice">Invoice</option>
+            <option value="Payment Receipt">Payment Receipt</option>
+            <option value="Addendum">Addendum</option>
+            <option value="Move-In Inspection">Move-In Inspection</option>
+            <option value="Move-Out Inspection">Move-Out Inspection</option>
+            <option value="Insurance">Insurance</option>
+            <option value="Pet Agreement">Pet Agreement</option>
+            <option value="Parking Agreement">Parking Agreement</option>
+            <option value="Correspondence">Correspondence</option>
+            <option value="Notice">Notice</option>
+            <option value="Other">Other</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <div class="form-check form-switch pt-2">
+            <input class="form-check-input" type="checkbox" id="groupByProperty" @bind="groupByProperty" @bind:after="ApplyFilters">
+            <label class="form-check-label" for="groupByProperty">
+                Group by Property
+            </label>
+        </div>
+        <div class="form-check form-switch pt-1">
+            <input class="form-check-input" type="checkbox" id="showArchivedDocuments" @bind="showArchivedDocuments" @bind:after="LoadDocuments">
+            <label class="form-check-label" for="showArchivedDocuments">
+                Show Archived
+            </label>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <button class="btn btn-outline-secondary" @onclick="ClearFilters">
+            <i class="bi bi-x-circle"></i> Clear Filters
+        </button>
+    </div>
+</div>
+
+<hr />
+
+@if (!allDocuments.Any())
 {
     @if (showArchivedDocuments)
     {
@@ -87,53 +135,6 @@ else if (!allDocuments.Any())
 }
 else
 {
-    <!-- Filters -->
-    <div class="row mb-3">
-        <div class="col-md-3">
-            <div class="input-group">
-                <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input type="text" class="form-control" placeholder="Search documents..." @bind="searchTerm" @onkeyup="ApplyFilters" />
-            </div>
-        </div>
-        <div class="col-md-3">
-            <select class="form-select" @bind="selectedDocumentType" @bind:after="ApplyFilters">
-                <option value="">All Document Types</option>
-                <option value="Lease Agreement">Lease Agreement</option>
-                <option value="Invoice">Invoice</option>
-                <option value="Payment Receipt">Payment Receipt</option>
-                <option value="Addendum">Addendum</option>
-                <option value="Move-In Inspection">Move-In Inspection</option>
-                <option value="Move-Out Inspection">Move-Out Inspection</option>
-                <option value="Insurance">Insurance</option>
-                <option value="Pet Agreement">Pet Agreement</option>
-                <option value="Parking Agreement">Parking Agreement</option>
-                <option value="Correspondence">Correspondence</option>
-                <option value="Notice">Notice</option>
-                <option value="Other">Other</option>
-            </select>
-        </div>
-        <div class="col-md-3">
-            <div class="form-check form-switch pt-2">
-                <input class="form-check-input" type="checkbox" id="groupByProperty" @bind="groupByProperty" @bind:after="ApplyFilters">
-                <label class="form-check-label" for="groupByProperty">
-                    Group by Property
-                </label>
-            </div>
-            <div class="form-check form-switch pt-1">
-                <input class="form-check-input" type="checkbox" id="showArchivedDocuments" @bind="showArchivedDocuments" @bind:after="LoadDocuments">
-                <label class="form-check-label" for="showArchivedDocuments">
-                    Show Archived
-                </label>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <button class="btn btn-outline-secondary" @onclick="ClearFilters">
-                <i class="bi bi-x-circle"></i> Clear Filters
-            </button>
-        </div>
-    </div>
-
-   <hr />
 
     <div class="card">
         <div class="card-body">
@@ -209,18 +210,9 @@ else
                                                         <button class="btn btn-outline-primary" @onclick="() => DownloadDocument(doc)" title="Download">
                                                             <i class="bi bi-download"></i>
                                                         </button>
-                                                        @if (lease != null)
-                                                        {
-                                                            <button class="btn btn-outline-secondary" @onclick="() => GoToLease(lease.Id)" title="View Lease">
-                                                                <i class="bi bi-file-text"></i>
-                                                            </button>
-                                                        }
-                                                        else
-                                                        {
-                                                            <button class="btn btn-outline-secondary" disabled title="Lease not found.">
-                                                                <i class="bi bi-file-x"></i>
-                                                            </button>
-                                                        }
+                                                        <button class="btn btn-outline-secondary" @onclick="() => GoToRelatedRecord(doc)" title="@GetRelatedRecordLabel(doc)">
+                                                            <i class="bi @GetRelatedRecordIcon(doc)"></i>
+                                                        </button>
                                                         @if (!doc.IsArchived)
                                                         {
                                                             <button class="btn btn-outline-warning" @onclick="() => ArchiveDocument(doc)" title="Archive">
@@ -340,18 +332,9 @@ else
                                             <button class="btn btn-outline-primary" @onclick="() => DownloadDocument(doc)" title="Download">
                                                 <i class="bi bi-download"></i>
                                             </button>
-                                            @if (lease != null)
-                                            {
-                                                <button class="btn btn-outline-secondary" @onclick="() => GoToLease(lease.Id)" title="View Lease">
-                                                    <i class="bi bi-file-text"></i>
-                                                </button>
-                                            }
-                                            else
-                                            {
-                                                <button class="btn btn-outline-secondary" disabled title="Lease not found.">
-                                                    <i class="bi bi-file-x"></i>
-                                                </button>
-                                            }
+                                            <button class="btn btn-outline-secondary" @onclick="() => GoToRelatedRecord(doc)" title="@GetRelatedRecordLabel(doc)">
+                                                <i class="bi @GetRelatedRecordIcon(doc)"></i>
+                                            </button>
                                             @if (!doc.IsArchived)
                                             {
                                                 <button class="btn btn-outline-warning" @onclick="() => ArchiveDocument(doc)" title="Archive">
@@ -468,14 +451,13 @@ else
             if (showArchivedDocuments)
             {
                 allDocuments = allUserDocs
+                    .Where(d => d.IsArchived)
                     .OrderByDescending(d => d.ArchivedOn)
                     .ToList();
             }
             else
             {
-                var thirtyDaysAgo = DateTime.UtcNow.AddDays(-30);
                 allDocuments = allUserDocs
-                    .Where(d => d.CreatedOn >= thirtyDaysAgo)
                     .OrderByDescending(d => d.CreatedOn)
                     .ToList();
             }
@@ -635,9 +617,36 @@ else
         await JSRuntime.InvokeVoidAsync("downloadFile", fileName, Convert.ToBase64String(fileData), mimeType);
     }
 
-    private void GoToLease(Guid leaseId)
+    private void GoToRelatedRecord(Document doc)
     {
-        Navigation.NavigateTo($"/propertymanagement/leases/{leaseId}");
+        if (doc.LeaseId.HasValue)
+            Navigation.NavigateTo($"/propertymanagement/leases/{doc.LeaseId.Value}");
+        else if (doc.TenantId.HasValue)
+            Navigation.NavigateTo($"/propertymanagement/tenants/{doc.TenantId.Value}");
+        else if (doc.InvoiceId.HasValue)
+            Navigation.NavigateTo($"/propertymanagement/invoices/{doc.InvoiceId.Value}");
+        else if (doc.PaymentId.HasValue)
+            Navigation.NavigateTo($"/propertymanagement/payments/{doc.PaymentId.Value}");
+        else if (doc.PropertyId.HasValue)
+            Navigation.NavigateTo($"/propertymanagement/properties/{doc.PropertyId.Value}");
+    }
+
+    private string GetRelatedRecordLabel(Document doc)
+    {
+        if (doc.LeaseId.HasValue) return "View Lease";
+        if (doc.TenantId.HasValue) return "View Tenant";
+        if (doc.InvoiceId.HasValue) return "View Invoice";
+        if (doc.PaymentId.HasValue) return "View Payment";
+        return "View Property";
+    }
+
+    private string GetRelatedRecordIcon(Document doc)
+    {
+        if (doc.LeaseId.HasValue) return "bi-file-text";
+        if (doc.TenantId.HasValue) return "bi-person";
+        if (doc.InvoiceId.HasValue) return "bi-receipt";
+        if (doc.PaymentId.HasValue) return "bi-cash";
+        return "bi-house";
     }
 
     private async Task ShowDeleteModal(Guid id)
@@ -704,7 +713,7 @@ else
     {
         try
         {
-            await DocumentService.UnarchiveAsync(doc.Id);
+            await DocumentService.RestoreAsync(doc.Id);
             await LoadDocuments();
         }
         catch (Exception ex)

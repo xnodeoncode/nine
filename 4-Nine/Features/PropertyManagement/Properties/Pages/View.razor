@@ -231,7 +231,7 @@
                 }
             </ul>
         }
-        <p class="text-muted small mb-0">Use the <strong>Show Archived</strong> toggle on each list page to view individual archived records. To restore all records, archive and then unarchive this property and choose <em>Restore All</em>.</p>
+        <p class="text-muted small mb-0">Use the <strong>Show Archived</strong> toggle on each list page to view individual archived records. To restore all records, archive and then restore this property and choose <em>Restore All</em>.</p>
     </ChildContent>
     <FooterContent>
         <button class="btn btn-secondary" @onclick="@CloseArchivedRecordsModal">Close</button>
@@ -267,7 +267,7 @@
     {
         property = await PropertyService.GetPropertyWithRelationsAsync(PropertyId) ?? new Property();
         lastInspection = await InspectionService.GetLastRoutineInspectionAsync(PropertyId) ?? new Inspection();
-        _archivedSummary = await PropertyService.GetUnarchiveCascadeSummaryAsync(PropertyId);
+        _archivedSummary = await PropertyService.GetRestoreCascadeSummaryAsync(PropertyId);
     }
 
     private void EditProperty()

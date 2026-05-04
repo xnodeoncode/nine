@@ -72,7 +72,7 @@
     OnView="ViewPropertyDetails"
     OnDelete="ShowDeleteModal"
     OnArchive="ShowArchiveModal"
-    OnUnarchive="UnarchiveProperty"
+    OnRestore="RestoreProperty"
     ShowArchived="@_showArchived"
     OnStatusFilterChanged="StatusFilterChanged"
     OnClearFilters="ClearFilters"
@@ -110,11 +110,48 @@
     ConfirmText="Restore All"
     SecondaryConfirmText="Property Only"
     CascadeLabel="Archived records that can be restored:"
-    Cascade="@_unarchiveSummary"
+    Cascade="@_restoreSummary"
     IsProcessing="@_isProcessing"
     OnConfirm="ConfirmUnarchiveAll"
-    OnSecondaryConfirm="ConfirmUnarchivePropertyOnly"
+    OnSecondaryConfirm="ConfirmRestorePropertyOnly"
     OnCancel="CloseModals" />
+
+@if (_showCannotProceedModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title"><i class="bi bi-info-circle me-2"></i>Cannot Archive or Delete</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => _showCannotProceedModal = false"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Before a property can be archived or deleted, it must meet all of the following requirements:</p>
+                    <ul>
+                        <li>Status must be <strong>Available</strong></li>
+                        <li>No active leases</li>
+                        <li>No open repairs</li>
+                    </ul>
+                    @if (_cannotProceedReasons.Any())
+                    {
+                        <div class="alert alert-warning mt-2 mb-0">
+                            <strong>Current issues:</strong>
+                            <ul class="mb-0 mt-1">
+                                @foreach (var reason in _cannotProceedReasons)
+                                {
+                                    <li>@reason</li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" @onclick="() => _showCannotProceedModal = false">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     private List<Property> allProperties = new List<Property>();
@@ -139,9 +176,13 @@
     private bool _showArchiveModal;
     private bool _showDeleteModal;
     private bool _showUnarchiveModal;
-    private CascadeSummary? _unarchiveSummary;
+    private CascadeSummary? _restoreSummary;
     private bool _isProcessing;
     private bool _showArchived;
+
+    // Cannot proceed modal
+    private bool _showCannotProceedModal;
+    private List<string> _cannotProceedReasons = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -281,8 +322,24 @@
         NavigationManager.NavigateTo($"/propertymanagement/properties/delete/{propertyId}");
     }
 
+    private bool CanArchiveOrDelete(Property property)
+    {
+        _cannotProceedReasons = new();
+        if (!property.IsActive)
+            return true;
+        if (property.Status != ApplicationConstants.PropertyStatuses.Available)
+            _cannotProceedReasons.Add($"Status is '{property.Status}' — must be 'Available'");
+        return !_cannotProceedReasons.Any();
+    }
+
     private async Task ShowArchiveModal(Guid id)
     {
+        var property = allProperties.FirstOrDefault(p => p.Id == id);
+        if (property != null && !CanArchiveOrDelete(property))
+        {
+            _showCannotProceedModal = true;
+            return;
+        }
         _pendingId = id;
         _cascade = await PropertyService.GetArchiveCascadeSummaryAsync(id);
         _showArchiveModal = true;
@@ -290,6 +347,12 @@
 
     private async Task ShowDeleteModal(Guid id)
     {
+        var property = allProperties.FirstOrDefault(p => p.Id == id);
+        if (property != null && !CanArchiveOrDelete(property))
+        {
+            _showCannotProceedModal = true;
+            return;
+        }
         _pendingId = id;
         _cascade = await PropertyService.GetDeleteCascadeSummaryAsync(id);
         _showDeleteModal = true;
@@ -313,18 +376,18 @@
         await LoadProperties();
     }
 
-    private async Task UnarchiveProperty(Guid id)
+    private async Task RestoreProperty(Guid id)
     {
         _pendingId = id;
-        _unarchiveSummary = await PropertyService.GetUnarchiveCascadeSummaryAsync(id);
-        if (_unarchiveSummary.HasRelatedRecords)
+        _restoreSummary = await PropertyService.GetRestoreCascadeSummaryAsync(id);
+        if (_restoreSummary.HasRelatedRecords)
         {
             _showUnarchiveModal = true;
         }
         else
         {
             _isProcessing = true;
-            await PropertyService.UnarchivePropertyAsync(id, false);
+            await PropertyService.RestorePropertyAsync(id, false);
             _isProcessing = false;
             await LoadProperties();
         }
@@ -333,16 +396,16 @@
     private async Task ConfirmUnarchiveAll()
     {
         _isProcessing = true;
-        await PropertyService.UnarchivePropertyAsync(_pendingId, true);
+        await PropertyService.RestorePropertyAsync(_pendingId, true);
         _isProcessing = false;
         CloseModals();
         await LoadProperties();
     }
 
-    private async Task ConfirmUnarchivePropertyOnly()
+    private async Task ConfirmRestorePropertyOnly()
     {
         _isProcessing = true;
-        await PropertyService.UnarchivePropertyAsync(_pendingId, false);
+        await PropertyService.RestorePropertyAsync(_pendingId, false);
         _isProcessing = false;
         CloseModals();
         await LoadProperties();
@@ -354,6 +417,6 @@
         _showDeleteModal = false;
         _showUnarchiveModal = false;
         _cascade = null;
-        _unarchiveSummary = null;
+        _restoreSummary = null;
     }
 }

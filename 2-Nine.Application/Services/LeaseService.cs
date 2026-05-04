@@ -287,7 +287,7 @@ namespace Nine.Application.Services
                 return await _context.Leases
                     .Include(l => l.Property)
                     .Include(l => l.Tenant)
-                    .Where(l => !l.IsDeleted && l.Property.OrganizationId == organizationId)
+                    .Where(l => !l.IsDeleted && !l.IsArchived && l.Property.OrganizationId == organizationId)
                     .OrderByDescending(l => l.StartDate)
                     .ToListAsync();
             }
@@ -587,6 +587,58 @@ namespace Nine.Application.Services
                 ["Documents"] = await _context.Documents.CountAsync(x => x.LeaseId == id && !x.IsDeleted && !x.IsArchived),
             };
             return new CascadeSummary { EntityName = "Lease", Counts = counts };
+        }
+
+        #endregion
+
+        #region Archive/Restore Override
+
+        /// <summary>
+        /// Archives a lease using a direct SQL update to avoid EF change tracking issues,
+        /// and cascade-archives all related invoices and documents.
+        /// </summary>
+        public override async Task<bool> ArchiveAsync(Guid id)
+        {
+            var userId = await _userContext.GetUserIdAsync();
+            var now = DateTime.UtcNow;
+
+            int rows = await _context.Leases
+                .Where(l => l.Id == id && !l.IsDeleted && !l.IsArchived)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(l => l.IsArchived, true)
+                    .SetProperty(l => l.ArchivedOn, now)
+                    .SetProperty(l => l.ArchivedBy, userId));
+
+            if (rows > 0)
+            {
+                await _context.Invoices
+                    .Where(x => x.LeaseId == id && !x.IsDeleted && !x.IsArchived)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(x => x.IsArchived, true)
+                        .SetProperty(x => x.ArchivedOn, now)
+                        .SetProperty(x => x.ArchivedBy, userId));
+
+                await _context.Documents
+                    .Where(x => x.LeaseId == id && !x.IsDeleted && !x.IsArchived)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(x => x.IsArchived, true)
+                        .SetProperty(x => x.ArchivedOn, now)
+                        .SetProperty(x => x.ArchivedBy, userId));
+            }
+
+            return rows > 0;
+        }
+
+        /// <summary>
+        /// Restores an archived lease using a direct SQL update to avoid EF change tracking issues.
+        /// </summary>
+        public override async Task<bool> RestoreAsync(Guid id)
+        {
+            int rows = await _context.Leases
+                .Where(l => l.Id == id && l.IsArchived)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(l => l.IsArchived, false));
+
+            return rows > 0;
         }
 
         #endregion

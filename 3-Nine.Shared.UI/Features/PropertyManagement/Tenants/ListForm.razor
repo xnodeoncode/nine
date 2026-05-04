@@ -426,7 +426,7 @@ else
 
     private async Task UnarchiveTenant(Guid id)
     {
-        await TenantService.UnarchiveAsync(id);
+        await TenantService.RestoreAsync(id);
         await LoadTenants();
         FilterTenants();
         CalculateMetrics();

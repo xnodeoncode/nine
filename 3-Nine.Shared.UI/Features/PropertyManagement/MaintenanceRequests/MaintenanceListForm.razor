@@ -414,7 +414,7 @@ else
 
     private async Task UnarchiveRequest(Guid id)
     {
-        await MaintenanceService.UnarchiveAsync(id);
+        await MaintenanceService.RestoreAsync(id);
         await LoadData();
     }
 

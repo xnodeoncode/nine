@@ -64,9 +64,9 @@
                             <i class="bi bi-archive"></i> Archive
                         </button>
                     }
-                    @if (ShowArchived && OnUnarchive.HasDelegate)
+                    @if (ShowArchived && OnRestore.HasDelegate)
                     {
-                        <button class="btn btn-outline-success" @onclick="HandleUnarchive">
+                        <button class="btn btn-outline-success" @onclick="HandleRestore">
                             <i class="bi bi-arrow-counterclockwise"></i> Unarchive
                         </button>
                     }
@@ -196,7 +196,7 @@
     /// Callback when Unarchive button is clicked
     /// </summary>
     [Parameter]
-    public EventCallback<Guid> OnUnarchive { get; set; }
+    public EventCallback<Guid> OnRestore { get; set; }
 
     /// <summary>
     /// When true, shows Unarchive button instead of Archive; hides Delete
@@ -228,9 +228,9 @@
         await OnArchive.InvokeAsync(PropertyId);
     }
 
-    private async Task HandleUnarchive()
+    private async Task HandleRestore()
     {
-        await OnUnarchive.InvokeAsync(PropertyId);
+        await OnRestore.InvokeAsync(PropertyId);
     }
     
     private string GetStatusBadgeClass()

@@ -566,7 +566,7 @@ else
 
     private async Task UnarchivePayment(Guid id)
     {
-        await PaymentService.UnarchiveAsync(id);
+        await PaymentService.RestoreAsync(id);
         await LoadPayments();
     }
 

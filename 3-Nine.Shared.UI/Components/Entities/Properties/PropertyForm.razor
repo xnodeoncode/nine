@@ -12,10 +12,17 @@
     }
 
     <div class="row">
-        <div class="col-md-12 mb-3">
+        <div class="col-md-8 mb-3">
             <label class="form-label">Address *</label>
             <InputText @bind-Value="Model.Address" class="form-control" placeholder="Enter property address" />
             <ValidationMessage For="() => Model.Address" class="text-danger" />
+        </div>
+        <div class="col-md-4 mb-3">
+
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="isActiveCheck" @bind="Model.IsActive" @bind:after="OnIsActiveChanged">
+                <label class="form-check-label" for="isActiveCheck">@(Model.IsActive ? "Ready" : "Off-Market")</label>
+            </div>
         </div>
     </div>
 

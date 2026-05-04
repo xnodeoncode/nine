@@ -25,7 +25,10 @@
     ShowGroupToggle="true"
     GroupedDataAvailable="@GroupedLeases.Any()"
     GroupByProperty="@GroupByProperty"
-    OnGroupToggled="@HandleGroupByPropertyChanged">
+    OnGroupToggled="@HandleGroupByPropertyChanged"
+    ShowArchivedToggle="true"
+    ShowArchived="@ShowArchived"
+    OnShowArchivedToggled="@HandleShowArchivedChanged">
     <SecondaryFilter>
         <select class="form-select" value="@TenantFilter" @onchange="HandleTenantFilterChanged">
             <option value="">All Tenants</option>
@@ -43,6 +46,14 @@
     <div class="card-body">
         @if (GroupByProperty)
         {
+            @if (!GroupedLeases.Any())
+            {
+                <div class="alert alert-info mb-0">
+                    <i class="bi bi-archive me-2"></i> No archived leases found.
+                </div>
+            }
+            else
+            {
             @foreach (var propertyGroup in GroupedLeases)
             {
                 var property = propertyGroup.First().Property;
@@ -133,9 +144,9 @@
                                                                     <i class="bi bi-archive"></i>
                                                                 </button>
                                                             }
-                                                            @if (ShowArchived && OnUnarchive.HasDelegate)
+                                                            @if (ShowArchived && OnRestore.HasDelegate)
                                                             {
-                                                                <button class="btn btn-outline-success" @onclick="() => HandleUnarchive(lease.Id)" title="Unarchive">
+                                                                <button class="btn btn-outline-success" @onclick="() => HandleRestore(lease.Id)" title="Restore">
                                                                     <i class="bi bi-arrow-counterclockwise"></i>
                                                                 </button>
                                                             }
@@ -154,6 +165,7 @@
                     }
                 </div>
             }
+            } @* end else (GroupedLeases.Any()) *@
         }
         else
         {
@@ -269,9 +281,9 @@
                                                         <i class="bi bi-archive"></i>
                                                     </button>
                                                 }
-                                                @if (ShowArchived && OnUnarchive.HasDelegate)
+                                                @if (ShowArchived && OnRestore.HasDelegate)
                                                 {
-                                                    <button class="btn btn-outline-success" @onclick="() => HandleUnarchive(lease.Id)" title="Unarchive">
+                                                    <button class="btn btn-outline-success" @onclick="() => HandleRestore(lease.Id)" title="Restore">
                                                         <i class="bi bi-arrow-counterclockwise"></i>
                                                     </button>
                                                 }
@@ -371,10 +383,13 @@
     public EventCallback<Guid> OnArchive { get; set; }
 
     [Parameter]
-    public EventCallback<Guid> OnUnarchive { get; set; }
+    public EventCallback<Guid> OnRestore { get; set; }
 
     [Parameter]
     public bool ShowArchived { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnShowArchivedChanged { get; set; }
 
     // Lease status options for filter dropdown
     private List<string> leaseStatuses = new() { "Active", "Expired", "Terminated", "Pending" };
@@ -397,6 +412,11 @@
     private async Task HandleGroupByPropertyChanged(bool groupByProperty)
     {
         await OnGroupByPropertyChanged.InvokeAsync(groupByProperty);
+    }
+
+    private async Task HandleShowArchivedChanged(bool value)
+    {
+        await OnShowArchivedChanged.InvokeAsync(value);
     }
     
     private async Task HandleSort(string column)
@@ -430,9 +450,9 @@
         await OnArchive.InvokeAsync(leaseId);
     }
 
-    private async Task HandleUnarchive(Guid leaseId)
+    private async Task HandleRestore(Guid leaseId)
     {
-        await OnUnarchive.InvokeAsync(leaseId);
+        await OnRestore.InvokeAsync(leaseId);
     }
     
     private string GetStatusBadgeClass(string status)

@@ -126,6 +126,7 @@ namespace Nine.Application.Services
                 var organizationId = await _userContext.GetActiveOrganizationIdAsync();
 
                 return await _context.Documents
+                    .AsNoTracking()
                     .Include(d => d.Property)
                     .Include(d => d.Tenant)
                     .Include(d => d.Lease)

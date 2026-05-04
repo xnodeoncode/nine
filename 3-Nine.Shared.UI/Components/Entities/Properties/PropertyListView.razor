@@ -66,7 +66,7 @@
                     OnEdit="@OnEdit"
                     OnDelete="@OnDelete"
                     OnArchive="@OnArchive"
-                    OnUnarchive="@OnUnarchive"
+                    OnRestore="@OnRestore"
                     ShowArchived="@ShowArchived" />
             </div>
         }
@@ -169,9 +169,9 @@ else
                                                     <i class="bi bi-archive"></i>
                                                 </button>
                                             }
-                                            @if (ShowArchived && OnUnarchive.HasDelegate)
+                                            @if (ShowArchived && OnRestore.HasDelegate)
                                             {
-                                                <button class="btn btn-outline-success" @onclick="() => HandleUnarchive(property.Id)" title="Unarchive">
+                                                <button class="btn btn-outline-success" @onclick="() => HandleRestore(property.Id)" title="Restore">
                                                     <i class="bi bi-arrow-counterclockwise"></i>
                                                 </button>
                                             }
@@ -322,7 +322,7 @@ else
     /// Callback when Unarchive button is clicked
     /// </summary>
     [Parameter]
-    public EventCallback<Guid> OnUnarchive { get; set; }
+    public EventCallback<Guid> OnRestore { get; set; }
 
     /// <summary>
     /// When true, shows Unarchive button instead of Archive/Edit
@@ -366,9 +366,9 @@ else
         await OnArchive.InvokeAsync(propertyId);
     }
 
-    private async Task HandleUnarchive(Guid propertyId)
+    private async Task HandleRestore(Guid propertyId)
     {
-        await OnUnarchive.InvokeAsync(propertyId);
+        await OnRestore.InvokeAsync(propertyId);
     }
     
     private string GetStatusBadgeClass(string status)
