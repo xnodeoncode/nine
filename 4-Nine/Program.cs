@@ -754,8 +754,12 @@ async Task ElectronAppReady()
     // app is captured from the enclosing scope — guaranteed non-null by the time
     // this fires, since Electron's ready event arrives after StartAsync completes.
 
-    // Verify backend is responding before showing window
-    var backendUrl = $"http://localhost:{electronPort}";
+    // Resolve the URL Kestrel actually bound to — app.Urls is populated after
+    // StartAsync completes, so it's always accurate regardless of how the port
+    // was chosen (GetFreePort, launchSettings, ASPNETCORE_URLS, etc.).
+    var backendUrl = app.Urls.FirstOrDefault(u => u.StartsWith("http://localhost"))
+        ?? app.Urls.First();
+    app.Logger.LogInformation("Electron backend URL resolved to: {Url}", backendUrl);
     var isBackendReady = false;
 
     try
