@@ -25,14 +25,21 @@ SQLitePCL.raw.sqlite3_initialize();
 WebApplication app = null!;
 var builder = WebApplication.CreateBuilder(args);
 
+// Declared before UseElectron so ElectronAppReady() can capture it.
+int electronPort = 0;
+
 // Configure Electron startup callback — called when Electron's socket bridge is ready.
 builder.WebHost.UseElectron(args, ElectronAppReady);
 
 // CRITICAL: Handle .restore_pending BEFORE any DbContext registration.
 HandlePendingRestore(builder.Configuration);
 
-// Electron-only: always bind to the fixed port Electron expects
-builder.WebHost.UseUrls("http://localhost:8888");
+// Electron-only: pick a free port at startup to avoid port conflicts.
+if (HybridSupport.IsElectronActive)
+{
+    electronPort = GetFreePort();
+    builder.WebHost.UseUrls($"http://localhost:{electronPort}");
+}
 
 
 
@@ -747,8 +754,12 @@ async Task ElectronAppReady()
     // app is captured from the enclosing scope — guaranteed non-null by the time
     // this fires, since Electron's ready event arrives after StartAsync completes.
 
-    // Verify backend is responding before showing window
-    var backendUrl = "http://localhost:8888";
+    // Resolve the URL Kestrel actually bound to — app.Urls is populated after
+    // StartAsync completes, so it's always accurate regardless of how the port
+    // was chosen (GetFreePort, launchSettings, ASPNETCORE_URLS, etc.).
+    var backendUrl = app.Urls.FirstOrDefault(u => u.StartsWith("http://localhost"))
+        ?? app.Urls.First();
+    app.Logger.LogInformation("Electron backend URL resolved to: {Url}", backendUrl);
     var isBackendReady = false;
 
     try
@@ -804,6 +815,17 @@ async Task ElectronAppReady()
         app.Logger.LogInformation("Electron window closed, shutting down application");
         Electron.App.Quit();
     };
+}
+
+// Picks a free local port by binding a TcpListener to port 0 (OS-assigned),
+// reading the assigned port, then releasing the socket before Kestrel binds.
+static int GetFreePort()
+{
+    var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+    listener.Start();
+    int port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+    listener.Stop();
+    return port;
 }
 
 // Local function to handle .restore_pending before service registration
