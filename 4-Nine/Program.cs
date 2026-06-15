@@ -25,14 +25,21 @@ SQLitePCL.raw.sqlite3_initialize();
 WebApplication app = null!;
 var builder = WebApplication.CreateBuilder(args);
 
+// Declared before UseElectron so ElectronAppReady() can capture it.
+int electronPort = 0;
+
 // Configure Electron startup callback — called when Electron's socket bridge is ready.
 builder.WebHost.UseElectron(args, ElectronAppReady);
 
 // CRITICAL: Handle .restore_pending BEFORE any DbContext registration.
 HandlePendingRestore(builder.Configuration);
 
-// Electron-only: always bind to the fixed port Electron expects
-builder.WebHost.UseUrls("http://localhost:8888");
+// Electron-only: pick a free port at startup to avoid port conflicts.
+if (HybridSupport.IsElectronActive)
+{
+    electronPort = GetFreePort();
+    builder.WebHost.UseUrls($"http://localhost:{electronPort}");
+}
 
 
 
@@ -748,7 +755,7 @@ async Task ElectronAppReady()
     // this fires, since Electron's ready event arrives after StartAsync completes.
 
     // Verify backend is responding before showing window
-    var backendUrl = "http://localhost:8888";
+    var backendUrl = $"http://localhost:{electronPort}";
     var isBackendReady = false;
 
     try
@@ -804,6 +811,17 @@ async Task ElectronAppReady()
         app.Logger.LogInformation("Electron window closed, shutting down application");
         Electron.App.Quit();
     };
+}
+
+// Picks a free local port by binding a TcpListener to port 0 (OS-assigned),
+// reading the assigned port, then releasing the socket before Kestrel binds.
+static int GetFreePort()
+{
+    var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+    listener.Start();
+    int port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+    listener.Stop();
+    return port;
 }
 
 // Local function to handle .restore_pending before service registration
