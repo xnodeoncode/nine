@@ -1,5 +1,6 @@
 @page "/propertymanagement/repairs"
 @using Nine.Core.Entities
+@using Nine.Shared.UI.Components.Entities.Repairs
 @attribute [OrganizationAuthorize("Owner", "Administrator", "PropertyManager")]
 
 @inject RepairService RepairService
@@ -18,6 +19,17 @@
         <button class="btn btn-primary" @onclick="NavigateToCreate">
             <i class="bi bi-plus-lg me-1"></i>New Repair
         </button>
+    </div>
+    <hr />
+    <div class="mb-4">
+        <RepairMetricsCard ScheduledCount="FilteredRepairs.Count(r => !r.IsCompleted)"
+                             InProgressCount="FilteredRepairs.Count(r => !r.IsCompleted)"
+                             TotalCount="FilteredRepairs.Count()"
+                             TotalExpense="FilteredRepairs.Sum(r => r.Cost)"
+                             ShowScheduled="true"
+                             ShowInProgress="true"
+                             ShowTotalCount="true"
+                             ShowTotalExpense="true" />
     </div>
     <hr />
     @if (isLoading)
@@ -100,13 +112,13 @@
                     <table class="table table-hover mb-0">
                         <thead class="table">
                             <tr>
-                                <th>Property</th>
+                                <th><button class="btn btn-link p-0 text-decoration-none text-dark fw-bold" @onclick='() => SortBy("Property")'>Property @if (_sortColumn == "Property") { <i class="bi @(_sortAscending ? "bi-caret-up" : "bi-caret-down")"></i> }</button></th>
                                 <th>Description</th>
-                                <th>Type</th>
-                                <th>Completed</th>
-                                <th>Cost</th>
+                                <th><button class="btn btn-link p-0 text-decoration-none text-dark fw-bold" @onclick='() => SortBy("RepairType")'>Type @if (_sortColumn == "RepairType") { <i class="bi @(_sortAscending ? "bi-caret-up" : "bi-caret-down")"></i> }</button></th>
+                                <th><button class="btn btn-link p-0 text-decoration-none text-dark fw-bold" @onclick='() => SortBy("CompletedOn")'>Completed @if (_sortColumn == "CompletedOn") { <i class="bi @(_sortAscending ? "bi-caret-up" : "bi-caret-down")"></i> }</button></th>
+                                <th><button class="btn btn-link p-0 text-decoration-none text-dark fw-bold" @onclick='() => SortBy("Cost")'>Cost @if (_sortColumn == "Cost") { <i class="bi @(_sortAscending ? "bi-caret-up" : "bi-caret-down")"></i> }</button></th>
                                 <th>Duration</th>
-                                <th>Status</th>
+                                <th><button class="btn btn-link p-0 text-decoration-none text-dark fw-bold" @onclick='() => SortBy("Status")'>Status @if (_sortColumn == "Status") { <i class="bi @(_sortAscending ? "bi-caret-up" : "bi-caret-down")"></i> }</button></th>
                                 <th class="text-end">Actions</th>
                             </tr>
                         </thead>
@@ -246,6 +258,8 @@
     private string selectedRepairType = string.Empty;
     private bool showInProgressOnly = false;
     private bool _showArchived = false;
+    private string _sortColumn = "CompletedOn";
+    private bool _sortAscending = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -302,7 +316,36 @@
                 filtered = filtered.Where(r => !r.IsCompleted);
             }
 
-            return filtered.OrderByDescending(r => r.CompletedOn ?? r.CreatedOn);
+            return _sortColumn switch
+            {
+                "Property" => _sortAscending
+                    ? filtered.OrderBy(r => r.Property?.Address)
+                    : filtered.OrderByDescending(r => r.Property?.Address),
+                "RepairType" => _sortAscending
+                    ? filtered.OrderBy(r => r.RepairType)
+                    : filtered.OrderByDescending(r => r.RepairType),
+                "CompletedOn" => _sortAscending
+                    ? filtered.OrderBy(r => r.CompletedOn ?? r.CreatedOn)
+                    : filtered.OrderByDescending(r => r.CompletedOn ?? r.CreatedOn),
+                "Cost" => _sortAscending
+                    ? filtered.OrderBy(r => r.Cost)
+                    : filtered.OrderByDescending(r => r.Cost),
+                "Status" => _sortAscending
+                    ? filtered.OrderBy(r => r.IsCompleted)
+                    : filtered.OrderByDescending(r => r.IsCompleted),
+                _ => filtered.OrderByDescending(r => r.CompletedOn ?? r.CreatedOn)
+            };
+        }
+    }
+
+    private void SortBy(string column)
+    {
+        if (_sortColumn == column)
+            _sortAscending = !_sortAscending;
+        else
+        {
+            _sortColumn = column;
+            _sortAscending = true;
         }
     }
 
@@ -312,9 +355,20 @@
 
     private async Task ArchiveRepair(Guid id)
     {
+        var repair = repairs.FirstOrDefault(r => r.Id == id);
+        if (repair == null)        {
+            ToastService.ShowError("Repair not found.");
+            return;
+        }
+
+        if(!repair.IsCompleted)
+        {
+            ToastService.ShowError("Only completed repairs can be archived.");
+            return;
+        }
         try
         {
-            await RepairService.ArchiveAsync(id);
+            await RepairService.ArchiveAsync(repair.Id);
             ToastService.ShowSuccess("Repair archived successfully.");
             await LoadData();
         }
@@ -326,9 +380,16 @@
 
     private async Task RestoreRepair(Guid id)
     {
+        var repair = repairs.FirstOrDefault(r => r.Id == id);
+        if (repair == null)
+        {
+            ToastService.ShowError("Repair not found.");
+            return;
+        }
+
         try
         {
-            await RepairService.RestoreAsync(id);
+            await RepairService.RestoreAsync(repair.Id);
             ToastService.ShowSuccess("Repair restored successfully.");
             await LoadData();
         }
@@ -340,6 +401,11 @@
 
     private async Task DeleteRepair(Guid id)
     {
+        var repair = repairs.FirstOrDefault(r => r.Id == id);
+        if (repair == null)        {
+            ToastService.ShowError("Repair not found.");
+            return;
+        }
         try
         {
             await RepairService.DeleteAsync(id);

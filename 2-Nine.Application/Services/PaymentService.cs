@@ -1,3 +1,4 @@
+using Nine.Application.Models;
 using Nine.Core.Interfaces.Services;
 using Nine.Core.Constants;
 using Nine.Core.Entities;
@@ -557,5 +558,51 @@ namespace Nine.Application.Services
                 // Don't throw - we don't want to fail the payment processing if late fee fails
             }
         }
+
+        #region Cascade Summary / Archive / Restore
+
+        /// <summary>
+        /// Returns a count of related records that would be permanently deleted with this payment.
+        /// </summary>
+        public override Task<CascadeSummary> GetDeleteCascadeSummaryAsync(Guid id)
+            => Task.FromResult(new CascadeSummary { EntityName = "Payment", Counts = new Dictionary<string, int>() });
+
+        /// <summary>
+        /// Returns a count of related records that would be archived with this payment.
+        /// </summary>
+        public override Task<CascadeSummary> GetArchiveCascadeSummaryAsync(Guid id)
+            => Task.FromResult(new CascadeSummary { EntityName = "Payment", Counts = new Dictionary<string, int>() });
+
+        /// <summary>
+        /// Archives a payment using a direct SQL update to avoid EF change tracking issues.
+        /// </summary>
+        public override async Task<bool> ArchiveAsync(Guid id)
+        {
+            var userId = await _userContext.GetUserIdAsync();
+            var now = DateTime.UtcNow;
+
+            int rows = await _context.Payments
+                .Where(p => p.Id == id && !p.IsDeleted && !p.IsArchived)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(p => p.IsArchived, true)
+                    .SetProperty(p => p.ArchivedOn, now)
+                    .SetProperty(p => p.ArchivedBy, userId));
+
+            return rows > 0;
+        }
+
+        /// <summary>
+        /// Restores an archived payment using a direct SQL update to avoid EF change tracking issues.
+        /// </summary>
+        public override async Task<bool> RestoreAsync(Guid id)
+        {
+            int rows = await _context.Payments
+                .Where(p => p.Id == id && p.IsArchived)
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.IsArchived, false));
+
+            return rows > 0;
+        }
+
+        #endregion
     }
 }

@@ -2,6 +2,7 @@
 
 @using Microsoft.AspNetCore.Components.Authorization
 @using Nine.Core.Entities
+@using Nine.Core.Constants
 @using Nine.Application.Services
 @using Nine.Shared.UI.Components.Entities.Leases
 @inject NavigationManager NavigationManager
@@ -500,15 +501,15 @@ else
     {
         if (filteredLeases != null && filteredLeases.Any())
         {
-            activeCount = filteredLeases.Count(l => l.Status == "Active");
+            activeCount = filteredLeases.Count(l => ApplicationConstants.LeaseStatuses.ActiveStatuses.Contains(l.Status));
             
             // Expiring within 90 days
             var ninetyDaysFromNow = DateTime.Now.AddDays(90);
             expiringSoonCount = filteredLeases.Count(l => 
-                l.Status == "Active" && l.EndDate <= ninetyDaysFromNow);
+                ApplicationConstants.LeaseStatuses.ActiveStatuses.Contains(l.Status) && l.EndDate <= ninetyDaysFromNow);
             
             totalMonthlyRent = filteredLeases
-                .Where(l => l.Status == "Active")
+                .Where(l => ApplicationConstants.LeaseStatuses.ActiveStatuses.Contains(l.Status))
                 .Sum(l => l.MonthlyRent);
         }
         else

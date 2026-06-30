@@ -615,22 +615,9 @@ namespace Nine.Application.Services.Workflows
                     lease.LastModifiedBy = userId;
                     lease.LastModifiedOn = DateTime.UtcNow;
 
-                    // Update property status if no other active leases exist for it
-                    if (lease.Property != null)
-                    {
-                        var hasOtherActiveLeases = await _context.Leases
-                            .AnyAsync(l => l.PropertyId == lease.PropertyId
-                                && l.Id != lease.Id
-                                && !l.IsDeleted
-                                && l.IsActive);
-
-                        if (!hasOtherActiveLeases)
-                        {
-                            lease.Property.Status = ApplicationConstants.PropertyStatuses.Available;
-                            lease.Property.LastModifiedBy = userId;
-                            lease.Property.LastModifiedOn = DateTime.UtcNow;
-                        }
-                    }
+                    // Property status is intentionally NOT changed on lease expiry.
+                    // An expired end date does not mean the tenant has vacated — the tenancy
+                    // continues on a hold-over basis until explicitly terminated.
 
                     await LogTransitionAsync(
                         "Lease",

@@ -1,3 +1,4 @@
+using Nine.Application.Models;
 using Nine.Core.Interfaces.Services;
 using Nine.Core.Constants;
 using Nine.Core.Entities;
@@ -291,5 +292,51 @@ namespace Nine.Application.Services
                 await _context.SaveChangesAsync();
             }
         }
+
+        #region Cascade Summary / Archive / Restore
+
+        /// <summary>
+        /// Returns a count of related records that would be permanently deleted with this inspection.
+        /// </summary>
+        public override Task<CascadeSummary> GetDeleteCascadeSummaryAsync(Guid id)
+            => Task.FromResult(new CascadeSummary { EntityName = "Inspection", Counts = new Dictionary<string, int>() });
+
+        /// <summary>
+        /// Returns a count of related records that would be archived with this inspection.
+        /// </summary>
+        public override Task<CascadeSummary> GetArchiveCascadeSummaryAsync(Guid id)
+            => Task.FromResult(new CascadeSummary { EntityName = "Inspection", Counts = new Dictionary<string, int>() });
+
+        /// <summary>
+        /// Archives an inspection using a direct SQL update to avoid EF change tracking issues.
+        /// </summary>
+        public override async Task<bool> ArchiveAsync(Guid id)
+        {
+            var userId = await _userContext.GetUserIdAsync();
+            var now = DateTime.UtcNow;
+
+            int rows = await _context.Inspections
+                .Where(i => i.Id == id && !i.IsDeleted && !i.IsArchived)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(i => i.IsArchived, true)
+                    .SetProperty(i => i.ArchivedOn, now)
+                    .SetProperty(i => i.ArchivedBy, userId));
+
+            return rows > 0;
+        }
+
+        /// <summary>
+        /// Restores an archived inspection using a direct SQL update to avoid EF change tracking issues.
+        /// </summary>
+        public override async Task<bool> RestoreAsync(Guid id)
+        {
+            int rows = await _context.Inspections
+                .Where(i => i.Id == id && i.IsArchived)
+                .ExecuteUpdateAsync(s => s.SetProperty(i => i.IsArchived, false));
+
+            return rows > 0;
+        }
+
+        #endregion
     }
 }

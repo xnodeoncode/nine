@@ -69,10 +69,10 @@
     }
 
     @* Group Toggle and Archived Toggle *@
-    @if ((ShowGroupToggle && GroupedDataAvailable) || ShowArchivedToggle)
+    @if (ShowGroupToggle || ShowArchivedToggle)
     {
         <div class="col-md-auto">
-            @if (ShowGroupToggle && GroupedDataAvailable)
+            @if (ShowGroupToggle)
             {
                 <div class="form-check form-switch pt-2">
                     <input class="form-check-input" type="checkbox" id="@GroupToggleId"

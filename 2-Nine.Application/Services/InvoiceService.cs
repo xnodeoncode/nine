@@ -536,5 +536,46 @@ namespace Nine.Application.Services
         }
 
         #endregion
+
+        #region Archive / Restore
+
+        /// <summary>
+        /// Archives an invoice and cascades to its payments.
+        /// </summary>
+        public override async Task<bool> ArchiveAsync(Guid id)
+        {
+            var userId = await _userContext.GetUserIdAsync();
+            var now = DateTime.UtcNow;
+
+            await _context.Payments
+                .Where(p => p.InvoiceId == id && !p.IsDeleted && !p.IsArchived)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(p => p.IsArchived, true)
+                    .SetProperty(p => p.ArchivedOn, now)
+                    .SetProperty(p => p.ArchivedBy, userId));
+
+            int rows = await _context.Invoices
+                .Where(i => i.Id == id && !i.IsDeleted && !i.IsArchived)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(i => i.IsArchived, true)
+                    .SetProperty(i => i.ArchivedOn, now)
+                    .SetProperty(i => i.ArchivedBy, userId));
+
+            return rows > 0;
+        }
+
+        /// <summary>
+        /// Restores an archived invoice. Payments are not automatically restored.
+        /// </summary>
+        public override async Task<bool> RestoreAsync(Guid id)
+        {
+            int rows = await _context.Invoices
+                .Where(i => i.Id == id && i.IsArchived)
+                .ExecuteUpdateAsync(s => s.SetProperty(i => i.IsArchived, false));
+
+            return rows > 0;
+        }
+
+        #endregion
     }
 }

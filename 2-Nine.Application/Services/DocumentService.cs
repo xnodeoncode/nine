@@ -1,3 +1,4 @@
+using Nine.Application.Models;
 using Nine.Core.Interfaces.Services;
 using Nine.Core.Constants;
 using Nine.Core.Entities;
@@ -417,6 +418,52 @@ namespace Nine.Application.Services
                 await HandleExceptionAsync(ex, "GetDocumentCountByType");
                 throw;
             }
+        }
+
+        #endregion
+
+        #region Cascade Summary / Archive / Restore
+
+        /// <summary>
+        /// Returns a count of related records that would be permanently deleted with this document.
+        /// </summary>
+        public override Task<CascadeSummary> GetDeleteCascadeSummaryAsync(Guid id)
+            => Task.FromResult(new CascadeSummary { EntityName = "Document", Counts = new Dictionary<string, int>() });
+
+        /// <summary>
+        /// Returns a count of related records that would be archived with this document.
+        /// </summary>
+        public override Task<CascadeSummary> GetArchiveCascadeSummaryAsync(Guid id)
+            => Task.FromResult(new CascadeSummary { EntityName = "Document", Counts = new Dictionary<string, int>() });
+
+        /// <summary>
+        /// Archives a document using a direct SQL update to avoid EF change tracking issues.
+        /// </summary>
+        public override async Task<bool> ArchiveAsync(Guid id)
+        {
+            var userId = await _userContext.GetUserIdAsync();
+            var now = DateTime.UtcNow;
+
+            int rows = await _context.Documents
+                .Where(d => d.Id == id && !d.IsDeleted && !d.IsArchived)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(d => d.IsArchived, true)
+                    .SetProperty(d => d.ArchivedOn, now)
+                    .SetProperty(d => d.ArchivedBy, userId));
+
+            return rows > 0;
+        }
+
+        /// <summary>
+        /// Restores an archived document using a direct SQL update to avoid EF change tracking issues.
+        /// </summary>
+        public override async Task<bool> RestoreAsync(Guid id)
+        {
+            int rows = await _context.Documents
+                .Where(d => d.Id == id && d.IsArchived)
+                .ExecuteUpdateAsync(s => s.SetProperty(d => d.IsArchived, false));
+
+            return rows > 0;
         }
 
         #endregion

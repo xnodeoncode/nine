@@ -58,7 +58,7 @@
             {
                 var property = propertyGroup.First().Property;
                 var propertyLeaseCount = propertyGroup.Count();
-                var activeLeaseCount = propertyGroup.Count(l => l.Status == "Active");
+                var activeLease = propertyGroup.FirstOrDefault(l => ApplicationConstants.LeaseStatuses.ActiveStatuses.Contains(l.Status));
                 var isExpanded = ExpandedProperties.Contains(propertyGroup.Key.GetHashCode());
                 
                 <div class="card mb-3">
@@ -70,7 +70,14 @@
                                 <span class="ms-3 text-muted">@property?.City, @property?.State @property?.ZipCode</span>
                             </div>
                             <div>
-                                <span class="badge bg-success me-2">@activeLeaseCount active</span>
+                                @if (activeLease != null)
+                                {
+                                    <span class="badge @GetStatusBadgeClass(activeLease.Status) me-2">@activeLease.Status</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary me-2">No Active Lease</span>
+                                }
                                 <span class="badge bg-secondary">@propertyLeaseCount total lease(s)</span>
                             </div>
                         </div>
@@ -459,10 +466,16 @@
     {
         return status switch
         {
-            "Active" => "bg-success",
-            "Pending" => "bg-info",
-            "Expired" => "bg-warning",
-            "Terminated" => "bg-danger",
+            ApplicationConstants.LeaseStatuses.Accepted => "bg-success",
+            ApplicationConstants.LeaseStatuses.MonthToMonth => "bg-success",
+            ApplicationConstants.LeaseStatuses.NoticeGiven => "bg-warning",
+            ApplicationConstants.LeaseStatuses.Offered => "bg-info",
+            ApplicationConstants.LeaseStatuses.Pending => "bg-info",
+            ApplicationConstants.LeaseStatuses.Expired => "bg-warning",
+            ApplicationConstants.LeaseStatuses.Terminated => "bg-danger",
+            ApplicationConstants.LeaseStatuses.Declined => "bg-danger",
+            ApplicationConstants.LeaseStatuses.Interrupted => "bg-danger",
+            ApplicationConstants.LeaseStatuses.Renewed => "bg-secondary",
             _ => "bg-secondary"
         };
     }

@@ -87,7 +87,7 @@ feature/Phase-X-Feature-Name
 
 ## Project Overview
 
-Nine is a multi-tenant property management system built with **ASP.NET Core 9.0 + Blazor Server**. It manages properties, tenants, leases, invoices, payments, documents, inspections, and maintenance requests with role-based access control.
+Nine is a multi-tenant property management system built with **ASP.NET Core 10.0 + Blazor Server**. It manages properties, tenants, leases, invoices, payments, documents, inspections, and maintenance requests with role-based access control.
 
 ## Architecture Fundamentals
 

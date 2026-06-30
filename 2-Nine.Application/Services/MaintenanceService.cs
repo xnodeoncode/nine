@@ -532,5 +532,46 @@ namespace Nine.Application.Services
         }
 
         #endregion
+
+        #region Archive / Restore
+
+        /// <summary>
+        /// Archives a maintenance request and cascades to its repairs.
+        /// </summary>
+        public override async Task<bool> ArchiveAsync(Guid id)
+        {
+            var userId = await _userContext.GetUserIdAsync();
+            var now = DateTime.UtcNow;
+
+            await _context.Repairs
+                .Where(r => r.MaintenanceRequestId == id && !r.IsDeleted && !r.IsArchived)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(r => r.IsArchived, true)
+                    .SetProperty(r => r.ArchivedOn, now)
+                    .SetProperty(r => r.ArchivedBy, userId));
+
+            int rows = await _context.MaintenanceRequests
+                .Where(m => m.Id == id && !m.IsDeleted && !m.IsArchived)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(m => m.IsArchived, true)
+                    .SetProperty(m => m.ArchivedOn, now)
+                    .SetProperty(m => m.ArchivedBy, userId));
+
+            return rows > 0;
+        }
+
+        /// <summary>
+        /// Restores an archived maintenance request. Repairs are not automatically restored.
+        /// </summary>
+        public override async Task<bool> RestoreAsync(Guid id)
+        {
+            int rows = await _context.MaintenanceRequests
+                .Where(m => m.Id == id && m.IsArchived)
+                .ExecuteUpdateAsync(s => s.SetProperty(m => m.IsArchived, false));
+
+            return rows > 0;
+        }
+
+        #endregion
     }
 }
