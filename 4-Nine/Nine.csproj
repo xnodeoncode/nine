@@ -66,12 +66,12 @@
     <PackageReference Include="ElectronNET.Core.AspNet" Version="0.4.1" />
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.1" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="10.0.9" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.1">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.1" />
-    <!-- <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.11" /> -->
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlcipher" Version="2.1.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.1" />
     <PackageReference Include="QuestPDF" Version="2025.12.1" />
@@ -94,6 +94,74 @@
       <!-- Further optimize hot paths after ReadyToRun compilation -->
       <TieredPGO>true</TieredPGO>
     </PropertyGroup>
+  </Target>
+
+  <!--
+    After dotnet clean, the bin/ directory is deleted including the .electron folder and the
+    Electron binary. This target auto-restores the binary from the npm cache after every build.
+
+    Linux/macOS: npm's allow-scripts policy and extract-zip failures prevent automatic download,
+    so the cache (~/.cache/electron) is used directly via unzip.
+
+    Windows: PowerShell Expand-Archive extracts from %LOCALAPPDATA%\electron\Cache.
+
+    First-time setup (no cache): the build emits a warning with exact steps to seed the cache.
+  -->
+  <Target Name="RestoreElectronBinary" AfterTargets="Build">
+
+    <!-- Platform-specific binary name, zip suffix, and npm cache location -->
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+      <_ElectronBinaryName>electron</_ElectronBinaryName>
+      <_ElectronPlatformArch>linux-x64</_ElectronPlatformArch>
+      <_ElectronCacheDir>$([System.Environment]::GetEnvironmentVariable('HOME'))/.cache/electron</_ElectronCacheDir>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+      <_ElectronBinaryName>electron.exe</_ElectronBinaryName>
+      <_ElectronPlatformArch>win32-x64</_ElectronPlatformArch>
+      <_ElectronCacheDir>$([System.Environment]::GetEnvironmentVariable('LOCALAPPDATA'))\electron\Cache</_ElectronCacheDir>
+    </PropertyGroup>
+
+    <PropertyGroup>
+      <_ElectronBinaryPath>$(OutDir).electron/node_modules/electron/dist/$(_ElectronBinaryName)</_ElectronBinaryPath>
+      <_ElectronDistPath>$(OutDir).electron/node_modules/electron/dist</_ElectronDistPath>
+      <_ElectronZipName>electron-v$(ElectronVersion)-$(_ElectronPlatformArch).zip</_ElectronZipName>
+    </PropertyGroup>
+
+    <!-- Locate zip in cache (Linux) — strip trailing newline with tr -->
+    <Exec Command="find &quot;$(_ElectronCacheDir)&quot; -name &quot;$(_ElectronZipName)&quot; -print -quit 2>/dev/null | tr -d '\n'"
+          ConsoleToMSBuild="true"
+          EchoOff="true"
+          Condition="!Exists('$(_ElectronBinaryPath)') And $([MSBuild]::IsOSPlatform('Linux'))">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_ElectronZipPath" />
+    </Exec>
+
+    <!-- Locate zip in cache (Windows) -->
+    <Exec Command="powershell -NoProfile -Command &quot;(Get-ChildItem -Path '$(_ElectronCacheDir)' -Filter '$(_ElectronZipName)' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).FullName&quot;"
+          ConsoleToMSBuild="true"
+          EchoOff="true"
+          Condition="!Exists('$(_ElectronBinaryPath)') And $([MSBuild]::IsOSPlatform('Windows'))">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_ElectronZipPath" />
+    </Exec>
+
+    <Message Text="[ElectronRestore] Binary missing — restoring from cache: $(_ElectronZipPath)"
+             Importance="high"
+             Condition="!Exists('$(_ElectronBinaryPath)') And '$(_ElectronZipPath)' != ''" />
+
+    <!-- Extract (Linux) -->
+    <Exec Command="rm -rf &quot;$(_ElectronDistPath)&quot; &amp;&amp; unzip -q &quot;$(_ElectronZipPath)&quot; -d &quot;$(_ElectronDistPath)&quot; &amp;&amp; chmod -R a+x &quot;$(_ElectronDistPath)&quot;"
+          Condition="!Exists('$(_ElectronBinaryPath)') And '$(_ElectronZipPath)' != '' And $([MSBuild]::IsOSPlatform('Linux'))" />
+
+    <!-- Extract (Windows) -->
+    <Exec Command="powershell -NoProfile -Command &quot;if (Test-Path '$(_ElectronDistPath)') { Remove-Item -Path '$(_ElectronDistPath)' -Recurse -Force }; Expand-Archive -Path '$(_ElectronZipPath)' -DestinationPath '$(_ElectronDistPath)' -Force&quot;"
+          Condition="!Exists('$(_ElectronBinaryPath)') And '$(_ElectronZipPath)' != '' And $([MSBuild]::IsOSPlatform('Windows'))" />
+
+    <!--
+      No cache found — first-time setup. Instruct the developer to run npm install once
+      to download the binary and populate the cache, then rebuild.
+    -->
+    <Warning Text="[ElectronRestore] SETUP REQUIRED: Electron binary not found and no cached zip in $(_ElectronCacheDir).%0A  Run once to seed the cache, then rebuild:%0A    cd &quot;$(OutDir).electron&quot; &amp;&amp; npm install"
+             Condition="!Exists('$(_ElectronBinaryPath)') And '$(_ElectronZipPath)' == ''" />
   </Target>
 
 </Project>

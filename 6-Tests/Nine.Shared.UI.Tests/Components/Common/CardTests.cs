@@ -6,7 +6,7 @@ using Xunit;
 
 namespace Nine.Shared.UI.Tests.Components.Common;
 
-public class CardTests : TestContext
+public class CardTests : BunitContext
 {
     [Fact]
     public void Card_Renders_With_Title()

@@ -9,7 +9,7 @@ namespace Nine.Shared.UI.Tests.Features.Notifications;
 /// Basic structure tests for NotificationBell component.
 /// Full functional testing requires NotificationService implementation.
 /// </summary>
-public class NotificationBellTests : TestContext
+public class NotificationBellTests : BunitContext
 {
     [Fact]
     public void NotificationBell_Component_Exists_And_Can_Be_Instantiated()

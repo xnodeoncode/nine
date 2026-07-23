@@ -40,3 +40,6 @@ obj/
 .vscode/settings.json
 
 *.code-workspace
+
+# VS Code C# language server cache
+*.lscache

@@ -9,7 +9,7 @@ namespace Nine.Shared.UI.Tests.Features.Notifications;
 /// Basic structure tests for NotificationPreferences component.
 /// Full functional testing requires NotificationService and UserContextService implementation.
 /// </summary>
-public class NotificationPreferencesTests : TestContext
+public class NotificationPreferencesTests : BunitContext
 {
     [Fact]
     public void NotificationPreferences_Component_Exists_And_Can_Be_Instantiated()
