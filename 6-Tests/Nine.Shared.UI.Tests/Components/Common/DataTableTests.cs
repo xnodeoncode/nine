@@ -6,7 +6,7 @@ using Xunit;
 
 namespace Nine.Shared.UI.Tests.Components.Common;
 
-public class DataTableTests : TestContext
+public class DataTableTests : BunitContext
 {
     private class TestItem
     {

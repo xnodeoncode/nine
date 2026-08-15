@@ -252,7 +252,7 @@ namespace Nine.Application.Tests
                 StartDate = DateTime.Today,
                 EndDate = DateTime.Today.AddYears(1),
                 MonthlyRent = 1500,
-                Status = ApplicationConstants.LeaseStatuses.Active,
+                Status = ApplicationConstants.LeaseStatuses.Accepted,
                 CreatedBy = _testUserId,
                 CreatedOn = DateTime.UtcNow
             };
@@ -281,7 +281,7 @@ namespace Nine.Application.Tests
         #region Property Availability Tests
 
         [Fact]
-        public async Task CreateAsync_ActiveLease_MarksPropertyUnavailable()
+        public async Task CreateAsync_ActiveLease_MarksPropertyOccupied()
         {
             // Arrange
             var lease = new Lease
@@ -292,7 +292,7 @@ namespace Nine.Application.Tests
                 StartDate = DateTime.Today,
                 EndDate = DateTime.Today.AddYears(1),
                 MonthlyRent = 1500,
-                Status = ApplicationConstants.LeaseStatuses.Active,
+                Status = ApplicationConstants.LeaseStatuses.Accepted,
                 CreatedBy = _testUserId,
                 CreatedOn = DateTime.UtcNow
             };
@@ -300,9 +300,11 @@ namespace Nine.Application.Tests
             // Act
             await _service.CreateAsync(lease);
 
-            // Assert
+            // Assert - Property.Status reflects occupancy; Property.IsActive tracks
+            // market status (on/off market) and is unaffected by occupancy.
             var property = await _context.Properties.FindAsync(_testPropertyId);
-            Assert.False(property!.IsActive);
+            Assert.Equal(ApplicationConstants.PropertyStatuses.Occupied, property!.Status);
+            Assert.True(property.IsActive);
         }
 
         [Fact]
@@ -342,7 +344,7 @@ namespace Nine.Application.Tests
                 StartDate = DateTime.Today,
                 EndDate = DateTime.Today.AddYears(1),
                 MonthlyRent = 1500,
-                Status = ApplicationConstants.LeaseStatuses.Active,
+                Status = ApplicationConstants.LeaseStatuses.Accepted,
                 CreatedBy = _testUserId,
                 CreatedOn = DateTime.UtcNow
             };
@@ -386,7 +388,7 @@ namespace Nine.Application.Tests
                 StartDate = DateTime.Today,
                 EndDate = DateTime.Today.AddYears(1),
                 MonthlyRent = 1500,
-                Status = ApplicationConstants.LeaseStatuses.Active,
+                Status = ApplicationConstants.LeaseStatuses.Accepted,
                 CreatedBy = _testUserId,
                 CreatedOn = DateTime.UtcNow
             };
@@ -412,7 +414,7 @@ namespace Nine.Application.Tests
                 StartDate = DateTime.Today,
                 EndDate = DateTime.Today.AddYears(1),
                 MonthlyRent = 1500,
-                Status = ApplicationConstants.LeaseStatuses.Active,
+                Status = ApplicationConstants.LeaseStatuses.Accepted,
                 CreatedBy = _testUserId,
                 CreatedOn = DateTime.UtcNow
             };
@@ -429,8 +431,11 @@ namespace Nine.Application.Tests
         [Fact]
         public async Task GetActiveLeasesAsync_ReturnsOnlyActiveLeases()
         {
-            // Arrange - Create leases with different statuses
-            var pendingLease = new Lease
+            // Arrange - Create leases with different statuses.
+            // Note: ApplicationConstants.LeaseStatuses.ActiveStatuses treats "Pending" as
+            // active (lease record still relevant/not archived), so use "Declined" here
+            // to represent a genuinely inactive lease.
+            var declinedLease = new Lease
             {
                 OrganizationId = _testOrgId,
                 PropertyId = _testPropertyId,
@@ -438,11 +443,11 @@ namespace Nine.Application.Tests
                 StartDate = DateTime.Today.AddMonths(1),
                 EndDate = DateTime.Today.AddMonths(13),
                 MonthlyRent = 1400,
-                Status = ApplicationConstants.LeaseStatuses.Pending,
+                Status = ApplicationConstants.LeaseStatuses.Declined,
                 CreatedBy = _testUserId,
                 CreatedOn = DateTime.UtcNow
             };
-            await _service.CreateAsync(pendingLease);
+            await _service.CreateAsync(declinedLease);
 
             // Create a second property and tenant for active lease
             var property2 = new Property
@@ -481,7 +486,7 @@ namespace Nine.Application.Tests
                 StartDate = DateTime.Today.AddMonths(-1),
                 EndDate = DateTime.Today.AddMonths(11),
                 MonthlyRent = 1500,
-                Status = ApplicationConstants.LeaseStatuses.Active,
+                Status = ApplicationConstants.LeaseStatuses.Accepted,
                 CreatedBy = _testUserId,
                 CreatedOn = DateTime.UtcNow
             };
@@ -492,7 +497,7 @@ namespace Nine.Application.Tests
 
             // Assert
             Assert.Single(result);
-            Assert.Equal(ApplicationConstants.LeaseStatuses.Active, result[0].Status);
+            Assert.Equal(ApplicationConstants.LeaseStatuses.Accepted, result[0].Status);
             Assert.True(result[0].StartDate <= DateTime.Today);
             Assert.True(result[0].EndDate >= DateTime.Today);
         }
@@ -539,7 +544,7 @@ namespace Nine.Application.Tests
                 StartDate = DateTime.Today.AddYears(-1),
                 EndDate = DateTime.Today.AddDays(30),
                 MonthlyRent = 1400,
-                Status = ApplicationConstants.LeaseStatuses.Active,
+                Status = ApplicationConstants.LeaseStatuses.Accepted,
                 CreatedBy = _testUserId,
                 CreatedOn = DateTime.UtcNow
             };
@@ -554,7 +559,7 @@ namespace Nine.Application.Tests
                 StartDate = DateTime.Today,
                 EndDate = DateTime.Today.AddMonths(6),
                 MonthlyRent = 1500,
-                Status = ApplicationConstants.LeaseStatuses.Active,
+                Status = ApplicationConstants.LeaseStatuses.Accepted,
                 CreatedBy = _testUserId,
                 CreatedOn = DateTime.UtcNow
             };
@@ -580,7 +585,7 @@ namespace Nine.Application.Tests
                 StartDate = DateTime.Today,
                 EndDate = DateTime.Today.AddYears(1),
                 MonthlyRent = 1500,
-                Status = ApplicationConstants.LeaseStatuses.Active,
+                Status = ApplicationConstants.LeaseStatuses.Accepted,
                 CreatedBy = _testUserId,
                 CreatedOn = DateTime.UtcNow
             };
@@ -617,13 +622,13 @@ namespace Nine.Application.Tests
             await _service.CreateAsync(pendingLease);
 
             // Act
-            var activeResults = await _service.GetLeasesByStatusAsync(ApplicationConstants.LeaseStatuses.Active);
+            var activeResults = await _service.GetLeasesByStatusAsync(ApplicationConstants.LeaseStatuses.Accepted);
             var pendingResults = await _service.GetLeasesByStatusAsync(ApplicationConstants.LeaseStatuses.Pending);
 
             // Assert
             Assert.Single(activeResults);
             Assert.Single(pendingResults);
-            Assert.Equal(ApplicationConstants.LeaseStatuses.Active, activeResults[0].Status);
+            Assert.Equal(ApplicationConstants.LeaseStatuses.Accepted, activeResults[0].Status);
             Assert.Equal(ApplicationConstants.LeaseStatuses.Pending, pendingResults[0].Status);
         }
 
@@ -639,7 +644,7 @@ namespace Nine.Application.Tests
                 StartDate = DateTime.Today,
                 EndDate = DateTime.Today.AddYears(1),
                 MonthlyRent = 1500,
-                Status = ApplicationConstants.LeaseStatuses.Active,
+                Status = ApplicationConstants.LeaseStatuses.Accepted,
                 CreatedBy = _testUserId,
                 CreatedOn = DateTime.UtcNow
             };
@@ -672,7 +677,7 @@ namespace Nine.Application.Tests
                 StartDate = new DateTime(2025, 1, 1),
                 EndDate = new DateTime(2025, 12, 31),
                 MonthlyRent = 1500,
-                Status = ApplicationConstants.LeaseStatuses.Active,
+                Status = ApplicationConstants.LeaseStatuses.Accepted,
                 CreatedBy = _testUserId,
                 CreatedOn = DateTime.UtcNow
             };
@@ -687,7 +692,7 @@ namespace Nine.Application.Tests
         }
 
         [Fact]
-        public async Task UpdateLeaseStatusAsync_UpdatesStatusAndPropertyAvailability()
+        public async Task UpdateLeaseStatusAsync_UpdatesStatusAndPropertyOccupancy()
         {
             // Arrange - Create pending lease
             var lease = new Lease
@@ -705,12 +710,14 @@ namespace Nine.Application.Tests
             var created = await _service.CreateAsync(lease);
 
             // Act - Change to Active
-            var updated = await _service.UpdateLeaseStatusAsync(created.Id, ApplicationConstants.LeaseStatuses.Active);
+            var updated = await _service.UpdateLeaseStatusAsync(created.Id, ApplicationConstants.LeaseStatuses.Accepted);
 
-            // Assert
-            Assert.Equal(ApplicationConstants.LeaseStatuses.Active, updated.Status);
+            // Assert - Property.Status reflects occupancy; Property.IsActive tracks
+            // market status (on/off market) and is unaffected by occupancy.
+            Assert.Equal(ApplicationConstants.LeaseStatuses.Accepted, updated.Status);
             var property = await _context.Properties.FindAsync(_testPropertyId);
-            Assert.False(property!.IsActive);
+            Assert.Equal(ApplicationConstants.PropertyStatuses.Occupied, property!.Status);
+            Assert.True(property.IsActive);
         }
 
         [Fact]
@@ -725,7 +732,7 @@ namespace Nine.Application.Tests
                 StartDate = DateTime.Today,
                 EndDate = DateTime.Today.AddYears(1),
                 MonthlyRent = 1500,
-                Status = ApplicationConstants.LeaseStatuses.Active,
+                Status = ApplicationConstants.LeaseStatuses.Accepted,
                 CreatedBy = _testUserId,
                 CreatedOn = DateTime.UtcNow
             };
@@ -803,7 +810,7 @@ namespace Nine.Application.Tests
                 StartDate = DateTime.Today,
                 EndDate = DateTime.Today.AddYears(1),
                 MonthlyRent = 2000,
-                Status = ApplicationConstants.LeaseStatuses.Active,
+                Status = ApplicationConstants.LeaseStatuses.Accepted,
                 CreatedBy = otherUserId,
                 CreatedOn = DateTime.UtcNow
             };
@@ -829,7 +836,7 @@ namespace Nine.Application.Tests
                 StartDate = DateTime.Today,
                 EndDate = DateTime.Today.AddYears(1),
                 MonthlyRent = 1500,
-                Status = ApplicationConstants.LeaseStatuses.Active,
+                Status = ApplicationConstants.LeaseStatuses.Accepted,
                 CreatedBy = _testUserId,
                 CreatedOn = DateTime.UtcNow
             };
@@ -892,7 +899,7 @@ namespace Nine.Application.Tests
                 StartDate = DateTime.Today,
                 EndDate = DateTime.Today.AddYears(1),
                 MonthlyRent = 2000,
-                Status = ApplicationConstants.LeaseStatuses.Active,
+                Status = ApplicationConstants.LeaseStatuses.Accepted,
                 CreatedBy = otherUserId,
                 CreatedOn = DateTime.UtcNow
             };

@@ -6,7 +6,7 @@ using Xunit;
 
 namespace Nine.Shared.UI.Tests.Components.Common;
 
-public class ModalTests : TestContext
+public class ModalTests : BunitContext
 {
     [Fact]
     public void Modal_Renders_When_IsVisible_Is_True()

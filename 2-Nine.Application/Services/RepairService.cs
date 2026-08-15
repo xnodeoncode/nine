@@ -130,7 +130,21 @@ public class RepairService : BaseService<Repair>
         var orgId = await _userContext.GetActiveOrganizationIdAsync();
 
         return await _dbSet
-            .Where(r => !r.IsDeleted && r.OrganizationId == orgId)
+            .Where(r => !r.IsDeleted && !r.IsArchived && r.OrganizationId == orgId)
+            .Include(r => r.Property)
+            .OrderByDescending(r => r.CompletedOn ?? r.CreatedOn)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Gets all archived repairs for the active organization with Property navigation included.
+    /// </summary>
+    public override async Task<List<Repair>> GetArchivedAsync()
+    {
+        var orgId = await _userContext.GetActiveOrganizationIdAsync();
+
+        return await _dbSet
+            .Where(r => !r.IsDeleted && r.IsArchived && r.OrganizationId == orgId)
             .Include(r => r.Property)
             .OrderByDescending(r => r.CompletedOn ?? r.CreatedOn)
             .ToListAsync();

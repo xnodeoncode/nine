@@ -516,8 +516,7 @@ namespace Nine.Application.Services
                 .Where(l => l.PropertyId == propertyId 
                     && !l.IsDeleted 
                     && l.Property.OrganizationId == organizationId
-                    && (l.Status == ApplicationConstants.LeaseStatuses.Pending
-                        || l.Status == ApplicationConstants.LeaseStatuses.Active))
+                    && l.IsActive)
                 .ToListAsync();
         }
 
@@ -588,7 +587,6 @@ namespace Nine.Application.Services
 
             await _dbContext.Leases.AddAsync(lease);
 
-            property.IsActive = false;
             property.LastModifiedOn = DateTime.UtcNow;
             property.LastModifiedBy = _userId;
 
@@ -1146,17 +1144,6 @@ namespace Nine.Application.Services
                     inspection.LastModifiedBy = _userId;
                     inspection.LastModifiedOn = DateTime.UtcNow;
                     _dbContext.Inspections.Update(inspection);
-                }
-
-                // Clear Lease.DocumentId if any lease links to this document
-                var lease = await _dbContext.Leases
-                    .FirstOrDefaultAsync(l => l.DocumentId == document.Id);
-                if (lease != null)
-                {
-                    lease.DocumentId = null;
-                    lease.LastModifiedBy = _userId;
-                    lease.LastModifiedOn = DateTime.UtcNow;
-                    _dbContext.Leases.Update(lease);
                 }
 
                 // Clear Invoice.DocumentId if any invoice links to this document

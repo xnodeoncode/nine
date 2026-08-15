@@ -87,7 +87,7 @@ feature/Phase-X-Feature-Name
 
 ## Project Overview
 
-Nine is a multi-tenant property management system built with **ASP.NET Core 9.0 + Blazor Server**. It manages properties, tenants, leases, invoices, payments, documents, inspections, and maintenance requests with role-based access control.
+Nine is a multi-tenant property management system built with **ASP.NET Core 10.0 + Blazor Server**. It manages properties, tenants, leases, invoices, payments, documents, inspections, and maintenance requests with role-based access control.
 
 ## Architecture Fundamentals
 
@@ -938,3 +938,10 @@ The database filename and schema version are tracked separately from the applica
 - Allows rapid iteration and entity refactoring
 - Schema migrations managed via EF Core Migrations folder
 - At v1.0.0 release, formalize database versioning with `app_v1.0.0.db`
+
+<!-- mermaid-ai-skills:start -->
+## Mermaid Diagrams
+
+When the user asks to create, edit, or visualize a diagram, follow the
+instructions in `.github/instructions/mermaid.instructions.md`.
+<!-- mermaid-ai-skills:end -->

@@ -776,8 +776,8 @@ async Task ElectronAppReady()
 
     var window = await Electron.WindowManager.CreateWindowAsync(new ElectronNET.API.Entities.BrowserWindowOptions
     {
-        Width = 1400,
-        Height = 900,
+        Width = 1600,
+        Height = 1000,
         MinWidth = 800,
         MinHeight = 600,
         Show = false,

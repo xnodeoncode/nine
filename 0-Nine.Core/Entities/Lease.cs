@@ -32,7 +32,9 @@ namespace Nine.Core.Entities
         public decimal SecurityDeposit { get; set; }
 
         [StringLength(50)]
-        public string Status { get; set; } = "Active"; // Active, Pending, Expired, Terminated
+        public string Status { get; set; } = "Offered";
+
+        public bool IsActive { get; set; } = true;
 
         [StringLength(1000)]
         public string Terms { get; set; } = string.Empty;
@@ -84,9 +86,6 @@ namespace Nine.Core.Entities
         [StringLength(500)]
         public string? TerminationReason { get; set; }
 
-        // Document Tracking
-        public Guid? DocumentId { get; set; }
-
         // Navigation properties
         [ForeignKey("PropertyId")]
         public virtual Property Property { get; set; } = null!;
@@ -94,14 +93,10 @@ namespace Nine.Core.Entities
         [ForeignKey("TenantId")]
         public virtual Tenant? Tenant { get; set; }
 
-        [ForeignKey("DocumentId")]
-        public virtual Document? Document { get; set; }
-
         public virtual ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
         public virtual ICollection<Document> Documents { get; set; } = new List<Document>();
 
         // Computed properties
-        public bool IsActive => Status == "Active" && DateTime.Now >= StartDate && DateTime.Now <= EndDate;
         public int DaysRemaining => EndDate > DateTime.Now ? (EndDate - DateTime.Now).Days : 0;
         public bool IsExpiringSoon => DaysRemaining > 0 && DaysRemaining <= 90;
         public bool IsExpired => DateTime.Now > EndDate;

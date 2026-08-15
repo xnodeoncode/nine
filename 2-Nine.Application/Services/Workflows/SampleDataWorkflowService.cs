@@ -272,7 +272,7 @@ namespace Nine.Application.Services.Workflows
                     SquareFeet = data.SqFt,
                     MonthlyRent = data.Rent,
                     Status = data.Status,
-                    IsActive = data.Status == ApplicationConstants.PropertyStatuses.Available,
+                    IsActive = true,
                     Description = $"Beautiful {data.Beds} bedroom, {data.Baths} bath {data.Type.ToLower()} in {data.City}. " +
                                  $"{data.SqFt} square feet with modern amenities and convenient location.",
                     RoutineInspectionIntervalMonths = 12,
@@ -383,7 +383,8 @@ namespace Nine.Application.Services.Workflows
                     EndDate = endDate,
                     MonthlyRent = property.MonthlyRent,
                     SecurityDeposit = property.MonthlyRent, // 1x rent
-                    Status = ApplicationConstants.LeaseStatuses.Active,
+                    Status = ApplicationConstants.LeaseStatuses.Accepted,
+                    IsActive = true,
                     Terms = $"12-month {ApplicationConstants.LeaseTypes.FixedTerm} lease. Rent: ${property.MonthlyRent}/month. " +
                            $"Security Deposit: ${property.MonthlyRent}. Payment due on the 5th of each month.",
                     SignedOn = startDate.AddDays(-10), // Signed 10 days before start
@@ -399,7 +400,6 @@ namespace Nine.Application.Services.Workflows
 
                 // Update property status to Occupied
                 property.Status = ApplicationConstants.PropertyStatuses.Occupied;
-                property.IsActive = false;
             }
 
             // Create 2 new leases expiring soon (properties 6 and 7, tenants 3 and 4)
@@ -416,7 +416,8 @@ namespace Nine.Application.Services.Workflows
                 EndDate = endDate30,
                 MonthlyRent = properties[6].MonthlyRent,
                 SecurityDeposit = properties[6].MonthlyRent,
-                Status = ApplicationConstants.LeaseStatuses.Active,
+                Status = ApplicationConstants.LeaseStatuses.Accepted,
+                IsActive = true,
                 Terms = $"12-month {ApplicationConstants.LeaseTypes.FixedTerm} lease. Rent: ${properties[6].MonthlyRent}/month. " +
                        $"Security Deposit: ${properties[6].MonthlyRent}. Payment due on the 5th of each month. EXPIRING SOON.",
                 SignedOn = startDate30.AddDays(-10), // Signed 10 days before start
@@ -429,7 +430,6 @@ namespace Nine.Application.Services.Workflows
             _context.Leases.Add(lease30Days);
             leases.Add(lease30Days);
             properties[6].Status = ApplicationConstants.PropertyStatuses.Occupied;
-            properties[6].IsActive = false;
 
             // Lease 2: Expires in 60 days from current date
             var endDate60 = currentDate.AddDays(60);
@@ -444,7 +444,8 @@ namespace Nine.Application.Services.Workflows
                 EndDate = endDate60,
                 MonthlyRent = properties[7].MonthlyRent,
                 SecurityDeposit = properties[7].MonthlyRent,
-                Status = ApplicationConstants.LeaseStatuses.Active,
+                Status = ApplicationConstants.LeaseStatuses.Accepted,
+                IsActive = true,
                 Terms = $"12-month {ApplicationConstants.LeaseTypes.FixedTerm} lease. Rent: ${properties[7].MonthlyRent}/month. " +
                        $"Security Deposit: ${properties[7].MonthlyRent}. Payment due on the 5th of each month. EXPIRING SOON.",
                 SignedOn = startDate60.AddDays(-10), // Signed 10 days before start
@@ -457,7 +458,6 @@ namespace Nine.Application.Services.Workflows
             _context.Leases.Add(lease60Days);
             leases.Add(lease60Days);
             properties[7].Status = ApplicationConstants.PropertyStatuses.Occupied;
-            properties[7].IsActive = false;
 
             await _context.SaveChangesAsync();
             _logger.LogInformation($"Generated {leases.Count} leases");
@@ -647,6 +647,14 @@ namespace Nine.Application.Services.Workflows
                     invoice.PaidOn = paymentDate;
                     invoice.LastModifiedBy = userId;
                     invoice.LastModifiedOn = paymentDate;
+
+                    // Record late fee on invoice so BalanceDue = Amount + LateFeeAmount - AmountPaid = 0
+                    if (lateFee > 0)
+                    {
+                        invoice.LateFeeAmount = lateFee;
+                        invoice.LateFeeApplied = true;
+                        invoice.LateFeeAppliedOn = paymentDate;
+                    }
                     
                     // Save invoice status update immediately
                     await _context.SaveChangesAsync();

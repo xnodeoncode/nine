@@ -6,7 +6,7 @@ using Xunit;
 
 namespace Nine.Shared.UI.Tests.Components.Common;
 
-public class FormFieldTests : TestContext
+public class FormFieldTests : BunitContext
 {
     [Fact]
     public void FormField_Renders_Label()

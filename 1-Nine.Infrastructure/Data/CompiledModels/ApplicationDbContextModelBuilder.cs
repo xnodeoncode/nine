@@ -11,7 +11,7 @@ namespace Nine.Infrastructure.Data.CompiledModels
     public partial class ApplicationDbContextModel
     {
         private ApplicationDbContextModel()
-            : base(skipDetectChanges: false, modelId: new Guid("409a29cb-f330-41bb-8099-305ed7a81084"), entityTypeCount: 35)
+            : base(skipDetectChanges: false, modelId: new Guid("a1d7c2c6-69bf-45da-9944-cd7f4a892b89"), entityTypeCount: 35)
         {
         }
 
@@ -73,10 +73,9 @@ namespace Nine.Infrastructure.Data.CompiledModels
             InvoiceEntityType.CreateForeignKey1(invoice, document);
             InvoiceEntityType.CreateForeignKey2(invoice, lease);
             InvoiceEntityType.CreateForeignKey3(invoice, organization);
-            LeaseEntityType.CreateForeignKey1(lease, document);
-            LeaseEntityType.CreateForeignKey2(lease, organization);
-            LeaseEntityType.CreateForeignKey3(lease, property);
-            LeaseEntityType.CreateForeignKey4(lease, tenant);
+            LeaseEntityType.CreateForeignKey1(lease, organization);
+            LeaseEntityType.CreateForeignKey2(lease, property);
+            LeaseEntityType.CreateForeignKey3(lease, tenant);
             LeaseOfferEntityType.CreateForeignKey1(leaseOffer, property);
             LeaseOfferEntityType.CreateForeignKey2(leaseOffer, prospectiveTenant);
             LeaseOfferEntityType.CreateForeignKey3(leaseOffer, rentalApplication);

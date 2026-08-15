@@ -9,7 +9,7 @@ namespace Nine.Shared.UI.Tests.Features.Notifications;
 /// Basic structure tests for NotificationCenter component.
 /// Full functional testing requires NotificationService implementation.
 /// </summary>
-public class NotificationCenterTests : TestContext
+public class NotificationCenterTests : BunitContext
 {
     [Fact]
     public void NotificationCenter_Component_Exists_And_Can_Be_Instantiated()

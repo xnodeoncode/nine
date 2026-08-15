@@ -15,7 +15,7 @@ namespace Nine.Shared.UI.Tests.Components.Layout;
 /// Tests for SharedMainLayout component.
 /// Note: SharedMainLayout uses AuthorizeView, so these tests add test authorization context.
 /// </summary>
-public class SharedMainLayoutTests : TestContext
+public class SharedMainLayoutTests : BunitContext
 {
     public SharedMainLayoutTests()
     {
