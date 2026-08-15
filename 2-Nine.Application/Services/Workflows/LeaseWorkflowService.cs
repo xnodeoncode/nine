@@ -592,7 +592,7 @@ namespace Nine.Application.Services.Workflows
             return await ExecuteWorkflowAsync<int>(async () =>
             {
                 // Called from background service — no Blazor circuit, use "System" as the actor.
-                var userId = await _userContext.GetUserIdAsync() ?? "System";
+                var userId = await _userContext.GetUserIdAsync() ?? ApplicationConstants.SystemUser.Id;
                 
                 // Find active leases past their end date
                 var expiredLeases = await _context.Leases

@@ -21,7 +21,7 @@
                 <i class="bi bi-list-ul"></i>
             </button>
         </div>
-        @if (showActiveTab && activeCount < maxProperties)
+        @if (currentTab == PropertyMarketTab.Available && availableTabCount < maxProperties)
         {
             <button class="btn btn-primary" @onclick="CreateProperty">
                 <i class="bi bi-plus-lg"></i> Add Property
@@ -39,15 +39,21 @@
 <div class="d-flex align-items-center justify-content-between mb-1">
     <ul class="nav nav-tabs mb-0">
         <li class="nav-item">
-            <button class="nav-link @(showActiveTab ? "active" : "")" @onclick='() => SwitchTab(true)'>
-                <i class="bi bi-check-circle me-1"></i> Active
-                <span class="badge bg-success ms-2">@activeCount</span>
+            <button class="nav-link @(currentTab == PropertyMarketTab.Available ? "active" : "")" @onclick='() => SwitchTab(PropertyMarketTab.Available)'>
+                <i class="bi bi-check-circle me-1"></i> Available
+                <span class="badge bg-success ms-2">@availableTabCount</span>
             </button>
         </li>
         <li class="nav-item">
-            <button class="nav-link @(!showActiveTab ? "active" : "")" @onclick='() => SwitchTab(false)'>
-                <i class="bi bi-pause-circle me-1"></i> Inactive
-                <span class="badge bg-secondary ms-2">@inactiveCount</span>
+            <button class="nav-link @(currentTab == PropertyMarketTab.Occupied ? "active" : "")" @onclick='() => SwitchTab(PropertyMarketTab.Occupied)'>
+                <i class="bi bi-house-door me-1"></i> Occupied
+                <span class="badge bg-primary ms-2">@occupiedTabCount</span>
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link @(currentTab == PropertyMarketTab.OffMarket ? "active" : "")" @onclick='() => SwitchTab(PropertyMarketTab.OffMarket)'>
+                <i class="bi bi-pause-circle me-1"></i> Off-Market
+                <span class="badge bg-secondary ms-2">@offMarketTabCount</span>
             </button>
         </li>
     </ul>
@@ -154,12 +160,38 @@
 }
 
 @code {
+    private enum PropertyMarketTab
+    {
+        Available,
+        Occupied,
+        OffMarket
+    }
+
+    // Sub-statuses that still fall under the "Available" market tab because the
+    // property can fall through (application/lease fails, move-in falls through)
+    // back onto the market at any time before the lease is fully active.
+    private static readonly IReadOnlyList<string> AvailableTabStatuses = new List<string>
+    {
+        ApplicationConstants.PropertyStatuses.Available,
+        ApplicationConstants.PropertyStatuses.ApplicationPending,
+        ApplicationConstants.PropertyStatuses.LeasePending,
+        ApplicationConstants.PropertyStatuses.MoveInPending
+    };
+
+    // Sub-statuses under the "Occupied" market tab.
+    private static readonly IReadOnlyList<string> OccupiedTabStatuses = new List<string>
+    {
+        ApplicationConstants.PropertyStatuses.Occupied,
+        ApplicationConstants.PropertyStatuses.MoveOutPending
+    };
+
     private List<Property> allProperties = new List<Property>();
     private List<Property> Properties = new List<Property>();
     private List<Property> filteredProperties = new List<Property>();
-    private bool showActiveTab = true;
-    private int activeCount => allProperties.Count(p => p.IsActive);
-    private int inactiveCount => allProperties.Count(p => !p.IsActive);
+    private PropertyMarketTab currentTab = PropertyMarketTab.Available;
+    private int availableTabCount => allProperties.Count(p => AvailableTabStatuses.Contains(p.Status));
+    private int occupiedTabCount => allProperties.Count(p => OccupiedTabStatuses.Contains(p.Status));
+    private int offMarketTabCount => allProperties.Count(p => ApplicationConstants.PropertyStatuses.InactiveStatuses.Contains(p.Status));
     private PropertyListViewMode viewMode = PropertyListViewMode.Table;
     private string sortColumn = nameof(Property.Address);
     private bool sortAscending = true;
@@ -197,16 +229,21 @@
         availableProperties = allProperties.Count(p => p.Status == ApplicationConstants.PropertyStatuses.Available);
         occupiedProperties = allProperties.Count(p => ApplicationConstants.PropertyStatuses.OccupiedStatuses.Contains(p.Status));
         totalMonthlyRent = allProperties.Where(p => p.IsActive).Sum(p => p.MonthlyRent);
-        ApplyTab(showActiveTab);
+        ApplyTab(currentTab);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            var saved = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "propertyListActiveTab");
-            bool savedTab = saved != "inactive";
-            if (savedTab != showActiveTab)
+            var saved = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "propertyListMarketTab");
+            var savedTab = saved switch
+            {
+                "occupied" => PropertyMarketTab.Occupied,
+                "offmarket" => PropertyMarketTab.OffMarket,
+                _ => PropertyMarketTab.Available
+            };
+            if (savedTab != currentTab)
             {
                 ApplyTab(savedTab);
                 StateHasChanged();
@@ -221,19 +258,31 @@
         ApplySort();
     }
 
-    private void ApplyTab(bool active)
+    private void ApplyTab(PropertyMarketTab tab)
     {
-        showActiveTab = active;
+        currentTab = tab;
         statusFilter = string.Empty;
         searchTerm = string.Empty;
-        Properties = allProperties.Where(p => p.IsActive == active).ToList();
+        Properties = tab switch
+        {
+            PropertyMarketTab.Available => allProperties.Where(p => AvailableTabStatuses.Contains(p.Status)).ToList(),
+            PropertyMarketTab.Occupied => allProperties.Where(p => OccupiedTabStatuses.Contains(p.Status)).ToList(),
+            PropertyMarketTab.OffMarket => allProperties.Where(p => ApplicationConstants.PropertyStatuses.InactiveStatuses.Contains(p.Status)).ToList(),
+            _ => allProperties.Where(p => AvailableTabStatuses.Contains(p.Status)).ToList()
+        };
         ApplySort();
     }
 
-    private async Task SwitchTab(bool active)
+    private async Task SwitchTab(PropertyMarketTab tab)
     {
-        ApplyTab(active);
-        await JSRuntime.InvokeVoidAsync("localStorage.setItem", "propertyListActiveTab", active ? "active" : "inactive");
+        ApplyTab(tab);
+        var value = tab switch
+        {
+            PropertyMarketTab.Occupied => "occupied",
+            PropertyMarketTab.OffMarket => "offmarket",
+            _ => "available"
+        };
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", "propertyListMarketTab", value);
     }
 
     private void ApplySort()

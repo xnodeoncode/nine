@@ -584,6 +584,9 @@
             {
                 showRenewLeaseModal = false;
                 Navigation.NavigateTo($"/propertymanagement/leases/{result.Data.Id}");
+            } else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Error renewing lease: {result.Message}");
             }
         }
         finally { isSubmitting = false; }

@@ -102,6 +102,10 @@ namespace Nine.Application.Services
         /// </summary>
         public override async Task<Lease> CreateAsync(Lease entity)
         {
+            // Keep IsActive in sync with the lease's initial status so queries like
+            // GetActiveLeasesAsync() correctly exclude leases created as Pending, etc.
+            entity.IsActive = ApplicationConstants.LeaseStatuses.ActiveStatuses.Contains(entity.Status);
+
             var lease = await base.CreateAsync(entity);
 
             // If lease is active, mark property as unavailable

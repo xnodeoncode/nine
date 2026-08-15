@@ -13,10 +13,11 @@
     </div>
     <div class="col-md-4">
         <select class="form-select" value="@StatusFilter" @onchange="HandleStatusFilterChanged">
-            <option value="">All Properties</option>
-            <option value="Available">Available</option>
-            <option value="Pending">Pending Lease</option>
-            <option value="Occupied">Occupied</option>
+            <option value="">All Statuses</option>
+            @foreach (var status in ApplicationConstants.PropertyStatuses.AllPropertyStatuses)
+            {
+                <option value="@status">@FormatPropertyStatus(status)</option>
+            }
         </select>
     </div>
     <div class="col-md-4">
