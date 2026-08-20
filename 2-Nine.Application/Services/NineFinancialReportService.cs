@@ -140,7 +140,7 @@ public class NineFinancialReportService
                 .Where(l => l.PropertyId == property.Id &&
                            !l.IsDeleted &&
                            (l.IsActive ||
-                            l.Status == ApplicationConstants.LeaseStatuses.Renewed ||
+                            l.Status == ApplicationConstants.LeaseStatuses.Terminated ||
                             l.Status == ApplicationConstants.LeaseStatuses.Terminated) &&
                            l.StartDate <= endDate)
                 .ToListAsync();

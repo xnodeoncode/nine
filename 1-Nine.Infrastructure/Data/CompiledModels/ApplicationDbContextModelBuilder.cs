@@ -11,7 +11,7 @@ namespace Nine.Infrastructure.Data.CompiledModels
     public partial class ApplicationDbContextModel
     {
         private ApplicationDbContextModel()
-            : base(skipDetectChanges: false, modelId: new Guid("a1d7c2c6-69bf-45da-9944-cd7f4a892b89"), entityTypeCount: 35)
+            : base(skipDetectChanges: false, modelId: new Guid("add1d3ce-6846-4378-a45f-4928e46ff923"), entityTypeCount: 36)
         {
         }
 
@@ -40,6 +40,7 @@ namespace Nine.Infrastructure.Data.CompiledModels
             var organizationUser = OrganizationUserEntityType.Create(this);
             var payment = PaymentEntityType.Create(this);
             var property = PropertyEntityType.Create(this);
+            var propertyExpense = PropertyExpenseEntityType.Create(this);
             var prospectiveTenant = ProspectiveTenantEntityType.Create(this);
             var rentalApplication = RentalApplicationEntityType.Create(this);
             var repair = RepairEntityType.Create(this);
@@ -89,6 +90,7 @@ namespace Nine.Infrastructure.Data.CompiledModels
             PaymentEntityType.CreateForeignKey2(payment, invoice);
             PaymentEntityType.CreateForeignKey3(payment, organization);
             PropertyEntityType.CreateForeignKey1(property, organization);
+            PropertyExpenseEntityType.CreateForeignKey1(propertyExpense, property);
             ProspectiveTenantEntityType.CreateForeignKey1(prospectiveTenant, property);
             RentalApplicationEntityType.CreateForeignKey1(rentalApplication, property);
             RentalApplicationEntityType.CreateForeignKey2(rentalApplication, prospectiveTenant);
@@ -130,6 +132,7 @@ namespace Nine.Infrastructure.Data.CompiledModels
             OrganizationUserEntityType.CreateAnnotations(organizationUser);
             PaymentEntityType.CreateAnnotations(payment);
             PropertyEntityType.CreateAnnotations(property);
+            PropertyExpenseEntityType.CreateAnnotations(propertyExpense);
             ProspectiveTenantEntityType.CreateAnnotations(prospectiveTenant);
             RentalApplicationEntityType.CreateAnnotations(rentalApplication);
             RepairEntityType.CreateAnnotations(repair);

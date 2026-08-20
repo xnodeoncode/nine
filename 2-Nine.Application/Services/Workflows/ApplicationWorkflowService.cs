@@ -876,7 +876,7 @@ namespace Nine.Application.Services.Workflows
                     MonthlyRent = leaseOffer.MonthlyRent,
                     SecurityDeposit = leaseOffer.SecurityDeposit,
                     Terms = leaseOffer.Terms,
-                    Status = ApplicationConstants.LeaseStatuses.Accepted,
+                    Status = ApplicationConstants.LeaseStatuses.Active,
                     IsActive = true,
                     SignedOn = DateTime.UtcNow,
                     CreatedBy = userId,

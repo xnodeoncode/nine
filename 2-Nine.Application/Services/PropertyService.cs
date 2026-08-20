@@ -301,7 +301,7 @@ namespace Nine.Application.Services
                                l.OrganizationId == organizationId &&
                                !l.IsDeleted &&
                                (l.IsActive ||
-                                l.Status == ApplicationConstants.LeaseStatuses.Renewed ||
+                                l.Status == ApplicationConstants.LeaseStatuses.Terminated ||
                                 l.Status == ApplicationConstants.LeaseStatuses.Terminated) &&
                                l.StartDate <= endDate)
                     .ToListAsync();
@@ -395,7 +395,7 @@ namespace Nine.Application.Services
                                    l.OrganizationId == organizationId &&
                                    !l.IsDeleted &&
                                    (l.IsActive ||
-                                    l.Status == ApplicationConstants.LeaseStatuses.Renewed ||
+                                    l.Status == ApplicationConstants.LeaseStatuses.Terminated ||
                                     l.Status == ApplicationConstants.LeaseStatuses.Terminated) &&
                                    l.StartDate <= endDate)
                         .ToListAsync();
@@ -629,6 +629,13 @@ namespace Nine.Application.Services
                         .SetProperty(x => x.IsArchived, true)
                         .SetProperty(x => x.ArchivedOn, now)
                         .SetProperty(x => x.ArchivedBy, userId));
+
+                await _context.PropertyExpenses
+                    .Where(x => x.PropertyId == id && !x.IsDeleted && !x.IsArchived)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(x => x.IsArchived, true)
+                        .SetProperty(x => x.ArchivedOn, now)
+                        .SetProperty(x => x.ArchivedBy, userId));
             }
 
             return result;
@@ -689,6 +696,13 @@ namespace Nine.Application.Services
                         .SetProperty(x => x.IsArchived, false)
                         .SetProperty(x => x.ArchivedOn, x => (DateTime?)null)
                         .SetProperty(x => x.ArchivedBy, x => (string?)null));
+
+                await _context.PropertyExpenses
+                    .Where(x => x.PropertyId == id && !x.IsDeleted && x.IsArchived)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(x => x.IsArchived, false)
+                        .SetProperty(x => x.ArchivedOn, x => (DateTime?)null)
+                        .SetProperty(x => x.ArchivedBy, x => (string?)null));
             }
 
             return result;
@@ -707,6 +721,7 @@ namespace Nine.Application.Services
                 ["Maintenance Requests"] = await _context.MaintenanceRequests.CountAsync(x => x.PropertyId == id && !x.IsDeleted && x.IsArchived),
                 ["Documents"] = await _context.Documents.CountAsync(x => x.PropertyId == id && !x.IsDeleted && x.IsArchived),
                 ["Repairs"] = await _context.Repairs.CountAsync(x => x.PropertyId == id && !x.IsDeleted && x.IsArchived),
+                ["Property Expenses"] = await _context.PropertyExpenses.CountAsync(x => x.PropertyId == id && !x.IsDeleted && x.IsArchived),
             };
             return new CascadeSummary { EntityName = "Property", Counts = counts };
         }
@@ -767,6 +782,11 @@ namespace Nine.Application.Services
                 .Where(r => r.PropertyId == id)
                 .ToListAsync();
             _context.Repairs.RemoveRange(repairs);
+
+            var expenses = await _context.PropertyExpenses
+                .Where(e => e.PropertyId == id)
+                .ToListAsync();
+            _context.PropertyExpenses.RemoveRange(expenses);
 
             var maintenanceRequests = await _context.MaintenanceRequests.Where(m => m.PropertyId == id).ToListAsync();
             _context.MaintenanceRequests.RemoveRange(maintenanceRequests);
@@ -840,6 +860,7 @@ namespace Nine.Application.Services
                 ["Calendar Events"] = await _context.CalendarEvents.CountAsync(x => x.PropertyId == id && !x.IsDeleted),
                 ["Tours"] = await _context.Tours.CountAsync(x => x.PropertyId == id && !x.IsDeleted),
                 ["Rental Applications"] = await _context.RentalApplications.CountAsync(x => x.PropertyId == id && !x.IsDeleted),
+                ["Property Expenses"] = await _context.PropertyExpenses.CountAsync(x => x.PropertyId == id && !x.IsDeleted),
             };
             return new CascadeSummary { EntityName = "Property", Counts = counts };
         }
@@ -856,6 +877,7 @@ namespace Nine.Application.Services
                 ["Maintenance Requests"] = await _context.MaintenanceRequests.CountAsync(x => x.PropertyId == id && !x.IsDeleted && !x.IsArchived),
                 ["Documents"] = await _context.Documents.CountAsync(x => x.PropertyId == id && !x.IsDeleted && !x.IsArchived),
                 ["Repairs"] = await _context.Repairs.CountAsync(x => x.PropertyId == id && !x.IsDeleted && !x.IsArchived),
+                ["Property Expenses"] = await _context.PropertyExpenses.CountAsync(x => x.PropertyId == id && !x.IsDeleted && !x.IsArchived),
             };
             return new CascadeSummary { EntityName = "Property", Counts = counts };
         }

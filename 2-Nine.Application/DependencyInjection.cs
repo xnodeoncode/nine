@@ -58,6 +58,7 @@ public static class DependencyInjection
         services.AddScoped<ProspectiveTenantService>();
         services.AddScoped<RentalApplicationService>();
         services.AddScoped<RepairService>();
+        services.AddScoped<PropertyExpenseService>();
         services.AddScoped<SampleDataWorkflowService>();
         services.AddScoped<ScheduledTaskService>();
         services.AddScoped<SchemaValidationService>();

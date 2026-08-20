@@ -1,8 +1,12 @@
 @using Nine.Core.Constants
 @using Nine.Core.Entities
 @using Nine.Shared.UI.Components.Entities.Properties
+@using Nine.Shared.UI.Components.Entities.PropertyExpenses
+@using Microsoft.Extensions.Options
 @inject NavigationManager Navigation
 @inject PropertyService PropertyService
+@inject PropertyExpenseService PropertyExpenseService
+@inject IOptions<ApplicationSettings> AppSettings
 @namespace Nine.Shared.UI.Features.PropertyManagement.Properties
 
 <div class="row">
@@ -23,12 +27,38 @@
             </div>
         </div>
     </div>
+    <div class="col-md-4">
+        <PropertyExpenseList
+            Expenses="@pendingExpenses"
+            ShowAddButton="true"
+            ShowEditButton="true"
+            OnAddExpense="ShowExpenseModal"
+            OnEditExpense="ShowEditExpenseModal" />
+    </div>
 </div>
+
+<PropertyExpenseModal
+    IsVisible="@showExpenseModal"
+    IsSaving="false"
+    OnSave="AddPendingExpense"
+    OnCancel="CloseExpenseModal" />
+
+<PropertyExpenseEditModal
+    IsVisible="@showEditExpenseModal"
+    Expense="@selectedExpense"
+    SoftDeleteEnabled="@AppSettings.Value.SoftDeleteEnabled"
+    OnCancelExpense="HandleCancelPendingExpense"
+    OnVoidExpense="HandleVoidPendingExpense"
+    OnDismiss="CloseEditExpenseModal" />
 
 @code {
     private PropertyFormModel propertyModel = new();
     private bool isSubmitting = false;
     private string errorMessage = string.Empty;
+    private bool showExpenseModal = false;
+    private bool showEditExpenseModal = false;
+    private PropertyExpense? selectedExpense;
+    private List<PropertyExpense> pendingExpenses = new();
 
     private async Task SaveProperty(PropertyFormModel model)
     {
@@ -52,9 +82,74 @@
             IsActive = model.IsActive,
         };
 
-        await PropertyService.CreateAsync(property);
+        var createdProperty = await PropertyService.CreateAsync(property);
+
+        // Persist any expenses queued before the property existed.
+        foreach (var expense in pendingExpenses)
+        {
+            expense.PropertyId = createdProperty.Id;
+            await PropertyExpenseService.CreateAsync(expense);
+        }
+
         isSubmitting = false;
         Navigation.NavigateTo("/propertymanagement/properties");
+    }
+
+    private void ShowExpenseModal()
+    {
+        showExpenseModal = true;
+    }
+
+    private void CloseExpenseModal()
+    {
+        showExpenseModal = false;
+    }
+
+    private void AddPendingExpense(PropertyExpenseFormModel model)
+    {
+        pendingExpenses.Add(new PropertyExpense
+        {
+            Id = Guid.NewGuid(),
+            ExpenseType = model.ExpenseType,
+            Description = model.Description ?? string.Empty,
+            Amount = model.Amount,
+            Frequency = model.Frequency,
+        });
+        showExpenseModal = false;
+    }
+
+    private void RemovePendingExpense(Guid id)
+    {
+        pendingExpenses.RemoveAll(e => e.Id == id);
+    }
+
+    private void ShowEditExpenseModal(PropertyExpense expense)
+    {
+        selectedExpense = expense;
+        showEditExpenseModal = true;
+    }
+
+    private void CloseEditExpenseModal()
+    {
+        showEditExpenseModal = false;
+        selectedExpense = null;
+    }
+
+    // For pending (not yet saved) expenses, both Cancel and Void just remove from the list.
+    private Task HandleCancelPendingExpense(string? reason)
+    {
+        if (selectedExpense != null)
+            pendingExpenses.RemoveAll(e => e.Id == selectedExpense.Id);
+        CloseEditExpenseModal();
+        return Task.CompletedTask;
+    }
+
+    private Task HandleVoidPendingExpense()
+    {
+        if (selectedExpense != null)
+            pendingExpenses.RemoveAll(e => e.Id == selectedExpense.Id);
+        CloseEditExpenseModal();
+        return Task.CompletedTask;
     }
 
     private void Cancel()
@@ -62,3 +157,4 @@
         Navigation.NavigateTo("/propertymanagement/properties");
     }
 }
+

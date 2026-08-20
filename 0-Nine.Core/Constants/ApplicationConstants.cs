@@ -224,15 +224,15 @@ namespace Nine.Core.Constants
             };
         }
        
-        public static class LeaseTypes { 
-            public const string FixedTerm = "Fixed-Term";
-            public const string MonthToMonth = "Month-to-Month";
-            public const string Sublease = "Sublease";
-            public const string Other = "Other";
+        public static class LeaseTypes {
+            public const string Term         = "Term";           // Fixed start/end date (replaces "Fixed-Term")
+            public const string MonthToMonth = "Month-to-Month"; // No fixed end, rolls monthly
+            public const string Sublease     = "Sublease";
+            public const string Other        = "Other";
 
             public static IReadOnlyList<string> AllLeaseTypes { get; } = new List<string>
             {
-                FixedTerm,
+                Term,
                 MonthToMonth,
                 Sublease,
                 Other
@@ -240,17 +240,14 @@ namespace Nine.Core.Constants
 
         }
 
-        public static class LeaseStatuses { 
-            public const string Offered = "Offered";
-            public const string Pending = "Pending";
-            public const string Accepted = "Accepted";
-            public const string Declined = "Declined";
-            public const string Renewed = "Renewed";
-            public const string MonthToMonth = "Month-to-Month";
-            public const string NoticeGiven = "Notice Given";
-            public const string Interrupted = "Interrupted";
-            public const string Terminated = "Terminated";
-            public const string Expired = "Expired";
+        public static class LeaseStatuses {
+            public const string Pending     = "Pending";       // Offered/awaiting start (pre-active)
+            public const string Active      = "Active";        // Lease is in force
+            public const string NoticeGiven = "Notice Given";  // Notice to vacate has been given
+            public const string Expired     = "Expired";       // Term end date passed, tenant still in place
+            public const string Terminated  = "Terminated";    // Fully ended (any reason)
+            public const string Declined    = "Declined";      // Offer rejected before activation
+            public const string Interrupted = "Interrupted";   // Administrative hold/interruption
 
             public static IReadOnlyList<string> RenewalStatuses { get; } = new List<string>
             {
@@ -265,17 +262,14 @@ namespace Nine.Core.Constants
             /// <summary>Active leases: IsActive = true</summary>
             public static IReadOnlyList<string> ActiveStatuses { get; } = new List<string>
             {
-                Offered,
                 Pending,
-                Accepted,
-                MonthToMonth,
+                Active,
                 NoticeGiven,
             };
 
             /// <summary>Inactive leases: IsActive = false</summary>
             public static IReadOnlyList<string> InactiveStatuses { get; } = new List<string>
             {
-                Renewed,
                 Declined,
                 Interrupted,
                 Terminated,
@@ -284,16 +278,13 @@ namespace Nine.Core.Constants
 
             public static IReadOnlyList<string> AllLeaseStatuses { get; } = new List<string>
             {
-                Offered,
                 Pending,
-                Accepted,
-                MonthToMonth,
+                Active,
                 NoticeGiven,
-                Renewed,
+                Expired,
+                Terminated,
                 Declined,
                 Interrupted,
-                Terminated,
-                Expired,
             };
         }
 
@@ -387,6 +378,53 @@ namespace Nine.Core.Constants
                 Landscaping,
                 PestControl,
                 Other
+            };
+        }
+
+        /// <summary>
+        /// Fixed/recurring expense categories for a property (e.g. mortgage, insurance,
+        /// maintenance). Used by the PropertyExpense entity.
+        /// </summary>
+        public static class PropertyExpenseTypes
+        {
+            public const string Mortgage = "Mortgage";
+            public const string Insurance = "Insurance";
+            public const string PropertyTax = "Property Tax";
+            public const string HOA = "HOA";
+            public const string Maintenance = "Maintenance";
+            public const string Utilities = "Utilities";
+            public const string Other = "Other";
+
+            public static IReadOnlyList<string> AllPropertyExpenseTypes { get; } = new List<string>
+            {
+                Mortgage,
+                Insurance,
+                PropertyTax,
+                HOA,
+                Maintenance,
+                Utilities,
+                Other
+            };
+        }
+
+        /// <summary>
+        /// Recurrence frequency for a PropertyExpense. Used to normalize expenses of
+        /// differing cadences (e.g. an annual insurance premium) into a common monthly
+        /// equivalent for reporting/rollup purposes.
+        /// </summary>
+        public static class ExpenseFrequencies
+        {
+            public const string Monthly = "Monthly";
+            public const string Quarterly = "Quarterly";
+            public const string Annual = "Annual";
+            public const string OneTime = "One-Time";
+
+            public static IReadOnlyList<string> AllExpenseFrequencies { get; } = new List<string>
+            {
+                Monthly,
+                Quarterly,
+                Annual,
+                OneTime
             };
         }
 

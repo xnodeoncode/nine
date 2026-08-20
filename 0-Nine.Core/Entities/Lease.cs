@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Nine.Core.Constants;
 using Nine.Core.Validation;
 
 namespace Nine.Core.Entities
@@ -32,7 +33,16 @@ namespace Nine.Core.Entities
         public decimal SecurityDeposit { get; set; }
 
         [StringLength(50)]
-        public string Status { get; set; } = "Offered";
+        public string Status { get; set; } = ApplicationConstants.LeaseStatuses.Pending;
+
+        /// <summary>
+        /// Defines the structure of the lease agreement (Term or Month-to-Month).
+        /// Set at signing and does not change during the lifecycle.
+        /// </summary>
+        [Required]
+        [StringLength(50)]
+        [Display(Name = "Lease Type")]
+        public string LeaseType { get; set; } = ApplicationConstants.LeaseTypes.Term;
 
         public bool IsActive { get; set; } = true;
 

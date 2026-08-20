@@ -22,7 +22,7 @@ namespace Nine.Infrastructure.Data.CompiledModels
                 typeof(Property),
                 baseEntityType,
                 propertyCount: 27,
-                navigationCount: 4,
+                navigationCount: 5,
                 foreignKeyCount: 1,
                 unnamedIndexCount: 2,
                 keyCount: 1);

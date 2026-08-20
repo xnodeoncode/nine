@@ -21,7 +21,7 @@ namespace Nine.Infrastructure.Data.CompiledModels
                 "Nine.Core.Entities.Lease",
                 typeof(Lease),
                 baseEntityType,
-                propertyCount: 40,
+                propertyCount: 41,
                 navigationCount: 4,
                 foreignKeyCount: 3,
                 unnamedIndexCount: 4,
@@ -148,6 +148,13 @@ namespace Nine.Infrastructure.Data.CompiledModels
                 propertyInfo: typeof(Lease).GetProperty("LeaseOfferId", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
                 fieldInfo: typeof(Lease).GetField("<LeaseOfferId>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
                 nullable: true);
+
+            var leaseType = runtimeEntityType.AddProperty(
+                "LeaseType",
+                typeof(string),
+                propertyInfo: typeof(Lease).GetProperty("LeaseType", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(Lease).GetField("<LeaseType>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                maxLength: 50);
 
             var monthlyRent = runtimeEntityType.AddProperty(
                 "MonthlyRent",

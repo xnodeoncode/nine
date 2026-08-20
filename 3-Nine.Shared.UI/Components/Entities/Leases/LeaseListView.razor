@@ -466,16 +466,13 @@
     {
         return status switch
         {
-            ApplicationConstants.LeaseStatuses.Accepted => "bg-success",
-            ApplicationConstants.LeaseStatuses.MonthToMonth => "bg-success",
+            ApplicationConstants.LeaseStatuses.Active      => "bg-success",
             ApplicationConstants.LeaseStatuses.NoticeGiven => "bg-warning",
-            ApplicationConstants.LeaseStatuses.Offered => "bg-info",
-            ApplicationConstants.LeaseStatuses.Pending => "bg-info",
-            ApplicationConstants.LeaseStatuses.Expired => "bg-warning",
-            ApplicationConstants.LeaseStatuses.Terminated => "bg-danger",
-            ApplicationConstants.LeaseStatuses.Declined => "bg-danger",
-            ApplicationConstants.LeaseStatuses.Interrupted => "bg-danger",
-            ApplicationConstants.LeaseStatuses.Renewed => "bg-secondary",
+            ApplicationConstants.LeaseStatuses.Pending     => "bg-info",
+            ApplicationConstants.LeaseStatuses.Expired     => "bg-warning",
+            ApplicationConstants.LeaseStatuses.Terminated  => "bg-danger",
+            ApplicationConstants.LeaseStatuses.Declined    => "bg-danger",
+            ApplicationConstants.LeaseStatuses.Interrupted => "bg-secondary",
             _ => "bg-secondary"
         };
     }

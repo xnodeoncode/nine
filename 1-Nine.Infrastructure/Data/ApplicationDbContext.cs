@@ -70,6 +70,7 @@ namespace Nine.Infrastructure.Data
         public DbSet<Inspection> Inspections { get; set; }
         public DbSet<MaintenanceRequest> MaintenanceRequests { get; set; }
         public DbSet<Repair> Repairs { get; set; }
+        public DbSet<PropertyExpense> PropertyExpenses { get; set; }
         public DbSet<OrganizationSettings> OrganizationSettings { get; set; }
         public DbSet<SchemaVersion> SchemaVersions { get; set; }
         public DbSet<DatabaseSettings> DatabaseSettings { get; set; }
@@ -328,6 +329,25 @@ namespace Nine.Infrastructure.Data
                 entity.HasIndex(e => e.LeaseId);
                 entity.HasIndex(e => e.CompletedOn);
                 entity.HasIndex(e => e.RepairType);
+            });
+
+            // Configure PropertyExpense entity
+            modelBuilder.Entity<PropertyExpense>(entity =>
+            {
+                // Required relationship: Property (Restrict - can't delete property with expenses)
+                entity.HasOne(e => e.Property)
+                    .WithMany(p => p.Expenses)
+                    .HasForeignKey(e => e.PropertyId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Decimal precision for Amount field
+                entity.Property(e => e.Amount).HasPrecision(18, 2);
+
+                // Indexes for query optimization
+                entity.HasIndex(e => e.OrganizationId);
+                entity.HasIndex(e => e.PropertyId);
+                entity.HasIndex(e => e.ExpenseType);
+                entity.HasIndex(e => e.EffectiveDate);
             });
 
             // Configure OrganizationSettings entity

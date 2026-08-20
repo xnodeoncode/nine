@@ -90,6 +90,16 @@
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
+                            <label class="form-label">Lease Type *</label>
+                            <InputSelect @bind-Value="leaseModel.LeaseType" class="form-select">
+                                @foreach (var type in ApplicationConstants.LeaseTypes.AllLeaseTypes)
+                                {
+                                    <option value="@type">@type</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="() => leaseModel.LeaseType" class="text-danger" />
+                        </div>
+                        <div class="col-md-6 mb-3">
                             <label class="form-label">Status</label>
                             <InputSelect @bind-Value="leaseModel.Status" @bind-Value:after="OnStatusChanged" class="form-select">
                                 @foreach (var status in ApplicationConstants.LeaseStatuses.AllLeaseStatuses)
@@ -225,7 +235,7 @@
         // Set default values
         leaseModel.StartDate = DateTime.Today;
         leaseModel.EndDate = DateTime.Today.AddYears(1);
-        leaseModel.Status = ApplicationConstants.LeaseStatuses.Offered;
+        leaseModel.Status = ApplicationConstants.LeaseStatuses.Pending;
         leaseModel.IsActive = true;
     }
 
@@ -300,6 +310,7 @@
                 MonthlyRent = leaseModel.MonthlyRent,
                 SecurityDeposit = leaseModel.SecurityDeposit,
                 Status = leaseModel.Status,
+                LeaseType = leaseModel.LeaseType,
                 IsActive = leaseModel.IsActive,
                 Terms = leaseModel.Terms,
                 Notes = leaseModel.Notes
@@ -358,7 +369,11 @@
 
         [Required(ErrorMessage = "Status is required")]
         [StringLength(50)]
-        public string Status { get; set; } = ApplicationConstants.LeaseStatuses.Offered;
+        public string Status { get; set; } = ApplicationConstants.LeaseStatuses.Pending;
+
+        [Required(ErrorMessage = "Lease type is required")]
+        [StringLength(50)]
+        public string LeaseType { get; set; } = ApplicationConstants.LeaseTypes.Term;
 
         public bool IsActive { get; set; } = true;
 
