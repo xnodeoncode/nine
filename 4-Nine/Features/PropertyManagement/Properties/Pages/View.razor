@@ -6,13 +6,17 @@
 @using Nine.Shared.UI.Components.Entities.Documents
 @using Nine.Shared.UI.Components.Entities.Inspections
 @using Nine.Shared.UI.Components.Entities.Repairs
+@using Nine.Shared.UI.Components.Entities.PropertyExpenses
 @using Nine.Shared.UI.Features.PropertyManagement.Properties
 @using Nine.Shared.UI.Features.PropertyManagement.Leases
+@using Microsoft.Extensions.Options
 
 @inject PropertyService PropertyService
 @inject InspectionService InspectionService
 @inject LeaseService LeaseService
 @inject RepairService RepairService
+@inject PropertyExpenseService PropertyExpenseService
+@inject IOptions<ApplicationSettings> AppSettings
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 
@@ -95,8 +99,32 @@
                 ShowViewButton = "@showInspectionViewButton"
                 NextInspectionDate="@property.NextRoutineInspectionDueDate" />
             </div>
+            <div class="mt-4">
+                <PropertyExpenseList
+                    Expenses="@propertyExpenses"
+                    ShowAddButton="true"
+                    ShowEditButton="true"
+                    OnAddExpense="ShowAddExpenseModal"
+                    OnEditExpense="ShowEditExpenseModal" />
+            </div>
         </div>
     </div>
+
+<!-- Expense Modals -->
+<PropertyExpenseModal
+    IsVisible="@showAddExpenseModal"
+    IsSaving="@isSavingExpense"
+    ErrorMessage="@expenseErrorMessage"
+    OnSave="AddExpense"
+    OnCancel="CloseAddExpenseModal" />
+
+<PropertyExpenseEditModal
+    IsVisible="@showEditExpenseModal"
+    Expense="@selectedExpense"
+    SoftDeleteEnabled="@AppSettings.Value.SoftDeleteEnabled"
+    OnCancelExpense="HandleCancelExpense"
+    OnVoidExpense="HandleVoidExpense"
+    OnDismiss="CloseEditExpenseModal" />
 
 <!-- Modals -->
 <Modal IsVisible="@showLeaseModal" 
@@ -244,6 +272,7 @@
 
     private Property property = new Property();
     private Inspection lastInspection = new Inspection();
+    private List<PropertyExpense> propertyExpenses = new();
 
     // Modal state
     private bool showLeaseModal = false;
@@ -258,7 +287,54 @@
         l.Status != ApplicationConstants.LeaseStatuses.Terminated &&
         l.Status != ApplicationConstants.LeaseStatuses.Declined);
 
-    // Selected entities for modals
+    // Expense modal state
+    private bool showAddExpenseModal = false;
+    private bool showEditExpenseModal = false;
+    private bool isSavingExpense = false;
+    private string expenseErrorMessage = string.Empty;
+    private PropertyExpense? selectedExpense;
+
+    private void ShowAddExpenseModal() { expenseErrorMessage = string.Empty; showAddExpenseModal = true; }
+    private void CloseAddExpenseModal() => showAddExpenseModal = false;
+    private void ShowEditExpenseModal(PropertyExpense expense) { selectedExpense = expense; showEditExpenseModal = true; }
+    private void CloseEditExpenseModal() { showEditExpenseModal = false; selectedExpense = null; }
+
+    private async Task AddExpense(PropertyExpenseFormModel model)
+    {
+        try
+        {
+            isSavingExpense = true;
+            expenseErrorMessage = string.Empty;
+            await PropertyExpenseService.CreateAsync(new PropertyExpense
+            {
+                PropertyId = PropertyId,
+                ExpenseType = model.ExpenseType,
+                Description = model.Description ?? string.Empty,
+                Amount = model.Amount,
+                Frequency = model.Frequency,
+            });
+            propertyExpenses = await PropertyExpenseService.GetExpensesByPropertyAsync(PropertyId);
+            showAddExpenseModal = false;
+        }
+        catch (Exception ex) { expenseErrorMessage = $"Error adding expense: {ex.Message}"; }
+        finally { isSavingExpense = false; }
+    }
+
+    private async Task HandleCancelExpense(string? reason)
+    {
+        if (selectedExpense == null) return;
+        await PropertyExpenseService.CancelExpenseAsync(selectedExpense.Id, reason);
+        CloseEditExpenseModal();
+        propertyExpenses = await PropertyExpenseService.GetExpensesByPropertyAsync(PropertyId);
+    }
+
+    private async Task HandleVoidExpense()
+    {
+        if (selectedExpense == null) return;
+        await PropertyExpenseService.VoidExpenseAsync(selectedExpense.Id);
+        CloseEditExpenseModal();
+        propertyExpenses = await PropertyExpenseService.GetExpensesByPropertyAsync(PropertyId);
+    }
     private Lease? selectedLease;
     private Repair? selectedRepair;
     private Inspection? selectedInspection;
@@ -268,6 +344,7 @@
         property = await PropertyService.GetPropertyWithRelationsAsync(PropertyId) ?? new Property();
         lastInspection = await InspectionService.GetLastRoutineInspectionAsync(PropertyId) ?? new Inspection();
         _archivedSummary = await PropertyService.GetRestoreCascadeSummaryAsync(PropertyId);
+        propertyExpenses = await PropertyExpenseService.GetExpensesByPropertyAsync(PropertyId);
     }
 
     private void EditProperty()
